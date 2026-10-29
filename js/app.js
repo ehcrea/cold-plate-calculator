@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  const { FLUIDS, LIQUIDS, GASES, MATERIALS, PRESETS } = CPData;
+  const { FLUIDS, LIQUIDS, GASES, MATERIALS, PRESETS, PUMPS, DEFAULT_PUMP } = CPData;
   const STORE_KEY = 'coldplate.v1';
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -14,10 +14,14 @@
   let currentApp = PRESETS.inverter.name;
   state.kCustom = MATERIALS.custom.k;
   state.rhoCustom = MATERIALS.custom.rho;
+  state.flowSource = 'fixed';
+  state.pump = clone(DEFAULT_PUMP);
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   const isGas = () => FLUIDS[state.fluid].phase === 'gas';
   const flowQty = () => ({ vol: 'volflow', mass: 'massflow', std: 'stdflow' }[state.flowMode]);
+  // Flow quantity for charts: a pump curve is always in volume flow.
+  const chartFlowQty = () => (state.flowSource === 'pump' ? 'volflow' : flowQty());
 
   // ---------- Setup ----------
 
@@ -27,6 +31,10 @@
 
     const mat = $('#material');
     for (const [id, m] of Object.entries(MATERIALS)) mat.add(new Option(m.name, id));
+
+    const pp = $('#pump-preset');
+    for (const [id, p] of Object.entries(PUMPS)) pp.add(new Option(p.name, id));
+    pp.add(new Option('Custom curve', 'custom'));
 
     const fl = $('#fluid');
     const groups = [['Liquids', LIQUIDS], ['Gases', GASES]];
@@ -60,7 +68,75 @@
     for (const span of $$('[data-unit]')) span.textContent = `(${Units.label(span.dataset.unit)})`;
     $('#flow-unit').textContent = `(${Units.label(flowQty())})`;
     renderSources();
+    renderPump();
     syncControls();
+  }
+
+  // ---------- Pump curve editor ----------
+
+  function renderPump() {
+    const P = state.pump;
+    $('#pump-preset').value = P.preset in PUMPS ? P.preset : 'custom';
+    const box = $('#pump-points');
+    box.textContent = '';
+    P.points.forEach((pt, i) => {
+      const row = document.createElement('div');
+      row.className = 'pt-row';
+      [['volflow', 0, 'Flow'], ['dpressure', 1, 'Pressure rise']].forEach(([q, col, lab]) => {
+        const inp = document.createElement('input');
+        inp.type = 'number'; inp.step = 'any'; inp.min = '0';
+        inp.dataset.pt = i; inp.dataset.col = col; inp.dataset.q = q;
+        inp.setAttribute('aria-label', `${lab}, point ${i + 1}`);
+        inp.value = displayNumber(Units.toDisplay(q, pt[col]));
+        row.appendChild(inp);
+      });
+      const del = document.createElement('button');
+      del.type = 'button'; del.className = 'icon-btn'; del.dataset.delpt = i; del.title = 'Remove point'; del.textContent = '✕';
+      del.disabled = P.points.length <= 2;
+      row.appendChild(del);
+      box.appendChild(row);
+    });
+    for (const inp of $$('[data-pump]')) inp.value = displayNumber(Units.toDisplay(inp.dataset.q, P[inp.dataset.pump]));
+  }
+
+  function onPumpInput(inp) {
+    const d = parseFloat(inp.value);
+    if (!isFinite(d) || d < 0) { inp.classList.add('bad'); return; }
+    inp.classList.remove('bad');
+    const v = Units.fromDisplay(inp.dataset.q, d);
+    if (inp.dataset.pump) state.pump[inp.dataset.pump] = v;
+    else {
+      state.pump.points[+inp.dataset.pt][+inp.dataset.col] = v;
+      state.pump.preset = 'custom';
+      $('#pump-preset').value = 'custom';
+    }
+    schedule();
+  }
+
+  function setPumpPreset(id) {
+    if (!PUMPS[id]) { state.pump.preset = 'custom'; return; }
+    state.pump.preset = id;
+    state.pump.points = PUMPS[id].points.map((p) => p.slice());
+  }
+
+  function bindPumpEvents() {
+    $('#pump-preset').addEventListener('change', (e) => { setPumpPreset(e.target.value); renderPump(); schedule(); });
+    $('#add-point').addEventListener('click', () => {
+      const pts = state.pump.points.slice().sort((a, b) => a[0] - b[0]);
+      const last = pts[pts.length - 1];
+      state.pump.points = pts.concat([[last[0] * 1.2, last[1] * 0.5]]);
+      state.pump.preset = 'custom';
+      renderPump();
+      schedule();
+    });
+    $('#pump-points').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-delpt]');
+      if (!b || state.pump.points.length <= 2) return;
+      state.pump.points.splice(+b.dataset.delpt, 1);
+      state.pump.preset = 'custom';
+      renderPump();
+      schedule();
+    });
   }
 
   // ---------- Heat sources editor ----------
@@ -192,9 +268,10 @@
     setRadio('layout-picker', 'layout', state.layout);
     setRadio('shape', 'shape', state.shape);
     setRadio('mode', 'mode', state.mode);
+    setRadio('flowsrc', 'flowsrc', state.flowSource);
 
     const active = new Set([state.shape, state.mode, state.layout === 'serpentine' ? 'serpentine' : 'parallel',
-      state.heatArea === 'sources' ? 'sources' : 'uniform']);
+      state.heatArea === 'sources' ? 'sources' : 'uniform', state.flowSource === 'pump' ? 'pump' : 'fixedflow']);
     if (state.material === 'custom') active.add('custom-material');
     for (const n of $$('[data-show]')) n.hidden = !n.dataset.show.split(' ').some((t) => active.has(t));
 
@@ -243,6 +320,7 @@
   function onInput(e) {
     const inp = e.target;
     if (inp.dataset.src) { onSourceInput(inp); return; }
+    if (inp.dataset.pt !== undefined || inp.dataset.pump) { onPumpInput(inp); return; }
     const key = inp.dataset.key;
     if (!key) return;
     if (inp.type === 'checkbox') state[key] = inp.checked;
@@ -291,11 +369,23 @@
       renderInputs();
     });
     radio('units', 'units', (v) => { Units.setSystem(v); renderInputs(); });
+    radio('flowsrc', 'flowsrc', (v) => {
+      state.flowSource = v;
+      // Suggest a blower when switching a gas-cooled plate to a pump curve.
+      const cur = PUMPS[state.pump.preset];
+      if (v === 'pump' && cur && cur.gas !== isGas()) {
+        // Switch to a pump of the right kind, with a matching rest-of-loop pressure drop.
+        const id = isGas() ? (state.fluid === 'h2' ? 'h2blower' : 'blower') : 'ev';
+        setPumpPreset(id);
+        [state.pump.extDp, state.pump.extQ] = PUMPS[id].loop || [DEFAULT_PUMP.extDp, DEFAULT_PUMP.extQ];
+      }
+      renderInputs();
+    });
 
     $('#preset').addEventListener('change', (e) => {
       const p = PRESETS[e.target.value];
       if (!p) return;
-      state = Object.assign({ kCustom: state.kCustom, rhoCustom: state.rhoCustom, sources: [] }, clone(p.state));
+      state = Object.assign({ kCustom: state.kCustom, rhoCustom: state.rhoCustom, sources: [], flowSource: 'fixed', pump: state.pump }, clone(p.state));
       currentApp = p.name;
       renderInputs();
       schedule();
@@ -355,6 +445,8 @@
       Units.setSystem(saved.u);
     }
     if (!Array.isArray(state.sources)) state.sources = [];
+    if (!state.pump || !Array.isArray(state.pump.points)) state.pump = clone(DEFAULT_PUMP);
+    if (state.flowSource !== 'pump') state.flowSource = 'fixed';
   }
   function save() {
     try { localStorage.setItem(STORE_KEY, JSON.stringify({ s: state, u: Units.system })); } catch (e) { /* storage unavailable */ }
@@ -362,7 +454,7 @@
 
   // ---------- Results ----------
 
-  let pending = false, lastResult = null, lastMap = null, lastView = null;
+  let pending = false, lastResult = null, lastMap = null, lastView = null, lastOp = null, calcState = state;
   function schedule() {
     if (pending) return;
     pending = true;
@@ -383,7 +475,11 @@
   function update() {
     let res, map = null;
     try {
-      const ev = Physics2D.evaluate(state, solveOpts());
+      // With a pump curve, the flow comes from the pump/system operating point.
+      const eff = Physics.effectiveState(state, solveOpts());
+      lastOp = eff.op;
+      calcState = eff.s;
+      const ev = Physics2D.evaluate(calcState, solveOpts());
       res = ev.base; map = ev.map;
     } catch (e) {
       console.error(e);
@@ -393,7 +489,8 @@
     lastResult = res;
     lastMap = map;
     save();
-    const issues = (res.issues || []).concat(mapIssues(res, map));
+    const issues = pumpIssues().concat(res.issues || [], mapIssues(res, map));
+    renderPumpHint();
     renderHero(res);
     renderIssues(issues);
     if (res.geometry && !res.geometry.issues.some((i) => i.level === 'error')) {
@@ -419,6 +516,23 @@
     if (!map) return state.heatArea === 'sources' ? null : { Q: res.Q, Tpeak: res.TsMax, Tout: res.Tout, Rth: res.Rth, Tmin: res.Tin, src: false };
     const Q = map.Qtotal;
     return { Q, Tpeak: map.Tmax, Tout: map.Tout, Tmin: map.Tmin, Rth: Q > 0 ? (map.Tmax - state.Tin) / Q : NaN, src: state.heatArea === 'sources' };
+  }
+
+  function pumpIssues() {
+    const op = lastOp;
+    if (!op) return [];
+    if (!op.ok) return [{ level: 'error', msg: `Pump curve: ${op.msg} Results below use the fixed flow rate instead.` }];
+    const out = [];
+    if (op.atEnd) out.push({ level: 'warn', msg: 'The operating point is at the end of the pump curve — extend the curve to higher flow for an accurate result.' });
+    else if (op.frac < 0.15) out.push({ level: 'warn', msg: `The pump runs at only ${(100 * op.frac).toFixed(0)} % of its maximum flow (near shut-off) — the system is very restrictive or the pump is oversized.` });
+    else if (op.frac > 0.85) out.push({ level: 'info', msg: `The pump runs at ${(100 * op.frac).toFixed(0)} % of its maximum flow, where curves are least accurate and efficiency is usually low.` });
+    return out;
+  }
+
+  function renderPumpHint() {
+    const op = lastOp;
+    $('#pump-hint').textContent = !op ? '' : !op.ok ? op.msg
+      : `Operating point: ${fmt('volflow', op.q)} at ${fmt('dpressure', op.dpPump)} (plate ${fmt('dpressure', op.dpPlate)}, rest of loop ${fmt('dpressure', op.dpLoop)}) · ${(100 * op.frac).toFixed(0)} % of max pump flow`;
   }
 
   function mapIssues(res, map) {
@@ -682,8 +796,8 @@
   function renderCharts(res) {
     const token = ++sweepToken;
     if (!res.ok) { $('#chart1').textContent = ''; $('#chart2').textContent = ''; return; }
-    const pts = Physics.sweep(state).filter((p) => p.res.ok);
-    const q = flowQty();
+    const pts = Physics.sweep(calcState).filter((p) => p.res.ok);
+    const q = chartFlowQty();
     const fx = (si) => Units.toDisplay(q, si);
     const xTitle = `Flow (${Units.label(q)})`;
     const fmtX = (v) => Units.fmtNumber(v);
@@ -706,7 +820,7 @@
         if (token !== sweepToken) return;
         const t0 = performance.now();
         while (i < ks.length && performance.now() - t0 < 30) {
-          const ev = Physics2D.evaluate(Object.assign({}, state, { flow: state.flow * ks[i] }), { maxCells: isGas() ? 1200 : 2500 });
+          const ev = Physics2D.evaluate(Object.assign({}, calcState, { flow: calcState.flow * ks[i] }), { maxCells: isGas() ? 1200 : 2500 });
           if (ev.map) curve.push({ k: ks[i], y: metric(ev.map) });
           i++;
         }
@@ -715,17 +829,17 @@
         const ref = curve.find((c) => c.k === 1);
         const isT = kind !== 'q';
         const corr = ref ? (isT ? (opY - state.Tin) / (ref.y - state.Tin) : opY / ref.y) : 1;
-        const data = curve.map((c) => ({ x: fx(state.flow * c.k), y: isT ? state.Tin + (c.y - state.Tin) * corr : c.y * corr }));
+        const data = curve.map((c) => ({ x: fx(calcState.flow * c.k), y: isT ? state.Tin + (c.y - state.Tin) * corr : c.y * corr }));
         if (isT) {
           Charts.lineChart($('#chart1'), {
             data: data.map((d) => ({ x: d.x, y: Units.toDisplay('temp', d.y) })),
-            op: { x: fx(state.flow), y: Units.toDisplay('temp', opY) }, opLabel: fmt('temp', opY),
+            op: { x: fx(calcState.flow), y: Units.toDisplay('temp', opY) }, opLabel: fmt('temp', opY),
             xTitle, yTitle: `${kind === 'tj' ? 'Hottest junction' : 'Peak surface'} (${Units.label('temp')})`, fmtX, fmtXFull,
             fmtY: (v) => Units.fmtNumber(v, 0), fmtYFull: (v) => `${Units.fmtNumber(v, 1)} ${Units.label('temp')}`,
           });
         } else {
           Charts.lineChart($('#chart1'), {
-            data, op: { x: fx(state.flow), y: opY }, opLabel: fmtPower(opY),
+            data, op: { x: fx(calcState.flow), y: opY }, opLabel: fmtPower(opY),
             xTitle, yTitle: 'Heat (W)', fmtX, fmtXFull,
             fmtY: (v) => (v >= 1000 ? Units.fmtNumber(v / 1000) + 'k' : Units.fmtNumber(v)), fmtYFull: fmtPower,
           });
@@ -733,9 +847,38 @@
       };
       setTimeout(step, 20);
     }
+    if (state.flowSource === 'pump' && lastOp && lastOp.ok) {
+      // Pump curve vs. system curve (plate + rest of loop), intersection = operating point.
+      $('#chart2-title').textContent = 'Pump vs. system curve';
+      const op = lastOp, n = 28;
+      const pump = [], sys = [], plate = [];
+      for (let i = 0; i <= n; i++) {
+        const qv = op.qMax * i / n;
+        const d = i ? Physics.systemDp(state, qv, solveOpts()) : { plate: 0, loop: 0 };
+        const x = Units.toDisplay('volflow', qv);
+        pump.push({ x, y: Units.toDisplay('dpressure', Physics.pumpDp(state.pump.points, qv)) });
+        sys.push({ x, y: Units.toDisplay('dpressure', d.plate + d.loop) });
+        plate.push({ x, y: Units.toDisplay('dpressure', d.plate) });
+      }
+      const fy = (v) => `${Units.fmtNumber(v)} ${Units.label('dpressure')}`;
+      Charts.lineChart($('#chart2'), {
+        series: [
+          { name: 'Pump curve', short: 'Pump', data: pump },
+          { name: 'System (plate + loop)', short: 'System', data: sys },
+          { name: 'Plate only', short: 'Plate', data: plate },
+        ],
+        yMaxHint: Math.max(...pump.map((p) => p.y)) * 1.1,
+        op: { x: Units.toDisplay('volflow', op.q), y: Units.toDisplay('dpressure', op.dpPump) },
+        opLabel: `${fmt('volflow', op.q)} · ${fmt('dpressure', op.dpPump)}`,
+        xTitle: `Flow (${Units.label('volflow')})`, yTitle: `Pressure (${Units.label('dpressure')})`,
+        fmtX, fmtXFull: (v) => `${Units.fmtNumber(v)} ${Units.label('volflow')}`, fmtY: (v) => Units.fmtNumber(v), fmtYFull: fy,
+      });
+      return;
+    }
+    $('#chart2-title').textContent = 'Pressure drop vs. flow';
     Charts.lineChart($('#chart2'), {
       data: pts.map((p) => ({ x: fx(p.flow), y: Units.toDisplay('dpressure', p.res.dp) })),
-      op: { x: fx(state.flow), y: Units.toDisplay('dpressure', res.dp) }, opLabel: fmt('dpressure', res.dp),
+      op: { x: fx(calcState.flow), y: Units.toDisplay('dpressure', res.dp) }, opLabel: fmt('dpressure', res.dp),
       xTitle, yTitle: `Pressure drop (${Units.label('dpressure')})`, fmtX, fmtXFull,
       fmtY: (v) => Units.fmtNumber(v), fmtYFull: (v) => `${Units.fmtNumber(v)} ${Units.label('dpressure')}`,
     });
@@ -746,6 +889,7 @@
     state: () => state,
     result: () => lastResult,
     map: () => lastMap,
+    op: () => lastOp,
     thermal, sourceRows,
     appName: () => currentApp,
     metricItems, fmtPower, shareUrl, toast,
@@ -757,6 +901,7 @@
   loadSaved();
   bindEvents();
   bindSourceEvents();
+  bindPumpEvents();
   renderInputs();
   update();
 })();

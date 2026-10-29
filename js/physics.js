@@ -352,7 +352,74 @@
     return pts;
   }
 
-  const Physics = { solve, sweep, fluidProps, geometry, waterTsat, laminarFD, laminarFApp, laminarNu, turbulentF, turbulentNu, channelFlow, bendK };
+  // ---------- Pump curve / operating point ----------
+
+  /** Pump pressure rise [Pa] at volume flow q [m³/s]; linear between points, 0 beyond the last point. */
+  function pumpDp(points, q) {
+    const p = points.slice().sort((a, b) => a[0] - b[0]);
+    if (!p.length) return 0;
+    if (q <= p[0][0]) return p[0][1];
+    for (let i = 0; i < p.length - 1; i++) {
+      const [q0, d0] = p[i], [q1, d1] = p[i + 1];
+      if (q <= q1) return d0 + (d1 - d0) * (q - q0) / (q1 - q0);
+    }
+    return Math.max(0, p[p.length - 1][1]);
+  }
+
+  /** Largest flow on the pump curve (where its pressure reaches zero, or the last point). */
+  function pumpMaxFlow(points) {
+    const p = points.slice().sort((a, b) => a[0] - b[0]);
+    return p.length ? p[p.length - 1][0] : 0;
+  }
+
+  /** Rest-of-loop pressure drop, quadratic in flow through a reference point. */
+  function loopDp(pump, q) {
+    return pump.extQ > 0 ? pump.extDp * (q / pump.extQ) ** 2 : 0;
+  }
+
+  /** Plate + loop pressure drop at volume flow q (inlet conditions). */
+  function systemDp(s, q, opts) {
+    const r = solve(Object.assign({}, s, { flowMode: 'vol', flow: q }), opts);
+    return { plate: r.ok ? r.dp : NaN, loop: loopDp(s.pump, q), res: r };
+  }
+
+  /**
+   * Operating point: flow at which the pump pressure equals plate + loop
+   * pressure drop. Solved by bisection on the volume flow.
+   */
+  function operatingPoint(s, opts = {}) {
+    const pts = (s.pump && s.pump.points) || [];
+    if (pts.length < 2) return { ok: false, msg: 'Enter at least two pump curve points.' };
+    const qMax = pumpMaxFlow(pts);
+    if (!(qMax > 0) || !(pumpDp(pts, 0) > 0)) return { ok: false, msg: 'The pump curve needs a positive shut-off pressure and flow.' };
+    const f = (q) => { const d = systemDp(s, q, opts); return pumpDp(pts, q) - d.plate - d.loop; };
+    let lo = qMax * 1e-4, hi = qMax;
+    let flo = f(lo), fhi = f(hi);
+    if (!isFinite(flo)) return { ok: false, msg: 'Plate geometry is invalid.' };
+    if (flo <= 0) return { ok: false, msg: 'The pump cannot overcome the plate and loop pressure drop.' };
+    if (fhi > 0) hi = qMax; // pump still has pressure at its last point: operate there
+    else {
+      for (let i = 0; i < 60; i++) {
+        const mid = 0.5 * (lo + hi), fm = f(mid);
+        if (fm > 0) lo = mid; else hi = mid;
+        if (hi - lo < qMax * 1e-7) break;
+      }
+    }
+    const q = fhi > 0 ? qMax : 0.5 * (lo + hi);
+    const d = systemDp(s, q, opts);
+    return { ok: true, q, dpPump: pumpDp(pts, q), dpPlate: d.plate, dpLoop: d.loop, qMax, frac: q / qMax, atEnd: fhi > 0 };
+  }
+
+  /** The state actually solved: with a pump, the flow comes from the operating point. */
+  function effectiveState(s, opts) {
+    if (s.flowSource !== 'pump') return { s, op: null };
+    const op = operatingPoint(s, opts);
+    if (!op.ok) return { s, op };
+    return { s: Object.assign({}, s, { flowMode: 'vol', flow: op.q }), op };
+  }
+
+  const Physics = { solve, sweep, fluidProps, geometry, waterTsat, laminarFD, laminarFApp, laminarNu, turbulentF, turbulentNu, channelFlow, bendK,
+    pumpDp, pumpMaxFlow, loopDp, systemDp, operatingPoint, effectiveState };
   if (typeof module !== 'undefined' && module.exports) module.exports = Physics;
   else root.Physics = Physics;
 })(typeof window !== 'undefined' ? window : globalThis);

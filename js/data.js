@@ -170,7 +170,19 @@
     },
   };
 
-  const Data = { LIQUIDS, GASES, FLUIDS, MATERIALS, PRESETS };
+  // Generic pump / blower curves: dp = dp0 · (1 − (q/qmax)²), sampled at six points.
+  const curve = (dp0, qmaxLpm) => [0, 0.2, 0.4, 0.6, 0.8, 1].map((f) => [f * qmaxLpm * L_PER_MIN, dp0 * (1 - f * f)]);
+  const PUMPS = {
+    // loop: a typical rest-of-loop pressure drop [Pa] at a reference flow [m³/s], used when switching between liquid and gas.
+    smalldc: { name: 'Small 12 V DC pump (≈8 L/min, 0.4 bar)', points: curve(40e3, 8), gas: false },
+    ev: { name: 'Automotive electric coolant pump (≈45 L/min, 1.5 bar)', points: curve(150e3, 45), gas: false },
+    industrial: { name: 'Industrial centrifugal pump (≈120 L/min, 3 bar)', points: curve(300e3, 120), gas: false },
+    blower: { name: 'Air / gas blower (≈1,500 L/min, 3 kPa)', points: curve(3e3, 1500), gas: true, loop: [0.5e3, 500 * L_PER_MIN] },
+    h2blower: { name: 'H₂ recirculation blower (≈600 L/min, 30 kPa)', points: curve(30e3, 600), gas: true, loop: [5e3, 300 * L_PER_MIN] },
+  };
+  const DEFAULT_PUMP = { preset: 'ev', points: PUMPS.ev.points.map((p) => p.slice()), extDp: 20e3, extQ: 10 * L_PER_MIN };
+
+  const Data = { LIQUIDS, GASES, FLUIDS, MATERIALS, PRESETS, PUMPS, DEFAULT_PUMP };
   if (typeof module !== 'undefined' && module.exports) module.exports = Data;
   else root.CPData = Data;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -7,6 +7,7 @@ A browser-based tool for sizing liquid- and gas-cooled cold plates for **power e
 - **Component temperatures**: place IGBT modules, diodes, battery modules or any heat source on the plate (drag them on the layout). For each one you get plate, case and junction temperature, margin to its limit, and how far total power can rise before the first limit is reached
 - A **2D plate temperature map** with hover readout and the hottest point marked
 - **Max. heat dissipation** at a given surface temperature limit, or **peak surface temperature** at a given heat load (uniform heating)
+- **Pump curve matching**: pick or enter a pump or blower curve and the rest-of-loop pressure drop. The calculator finds the operating point where pump pressure equals plate plus loop pressure drop, and plots the pump curve against the system curve
 - Coolant outlet temperature, pressure drop and its breakdown, and hydraulic pump power
 - Thermal resistance breakdown (coolant capacity, convection, wall conduction, lateral spreading)
 - Reynolds number, flow regime, heat-transfer coefficient, fin efficiency and NTU
@@ -24,7 +25,7 @@ Switches between **SI and Imperial** units. **Export PDF** downloads a design re
 | Plate | Length × width × thickness. Al 6061 / 6063 / 3003 / 1100, Cu C110 / C101, SS 304 / 316L, Ti Gr 2, or a custom material |
 | Layout | Serpentine (1–6 parallel circuits), parallel Z-type, parallel U-type. Channels can run along the length or the width; edge margin, header size, port diameter and mirrored ports are adjustable |
 | Channel | Round, square or rectangular section; wall thickness to the heated face; wall roughness |
-| Coolant | Water (DI), ethylene glycol 30/50 %, propylene glycol 30/50 %, clean dry air, N₂, H₂. Inlet temperature and pressure; flow as volume, mass or standard flow (SLPM/SCFM) |
+| Coolant | Water (DI), ethylene glycol 30/50 %, propylene glycol 30/50 %, clean dry air, N₂, H₂. Inlet temperature and pressure. Flow as volume, mass or standard flow (SLPM/SCFM), or from a pump curve (generic pump and blower presets, or your own points) plus a rest-of-loop pressure drop that scales with flow² |
 | Heat input | Discrete heat sources (power, position, footprint, TIM thickness and conductivity, R<sub>jc</sub>, temperature limit), or uniform heat over the whole face or the channel area, with find max. heat or find surface temperature |
 
 Application presets: inverter/IGBT plate, EV battery cold plate, fuel-cell cooling plate, hydrogen gas-cooled plate, high-flux copper plate.
@@ -57,6 +58,7 @@ The tests check the correlations against textbook values, verify fluid propertie
 | Turbulent friction | Haaland (with roughness) |
 | Transition | Linear blend between Re 2300 and Re 4000 |
 | Bends | Darby 3-K for 180° returns |
+| Pump operating point | Bisection on volume flow until pump Δp(Q) = plate Δp(Q) + loop Δp·(Q/Q<sub>ref</sub>)². The pump curve is linear between points |
 | Other losses | Channel entry/exit K = 0.5 + 1.0; headers K = 1.0 each; ports K = 1.5 each |
 | 2D plate model | Finite-difference grid over the plate face (up to about 6,000 cells, solved with preconditioned conjugate gradient). In-plane conduction uses the local solid thickness. Cells above channels, port leads and headers are coupled to the coolant through the heated-face wall and the fin-corrected convective film. The coolant is marched along each channel path, and plate and coolant are solved alternately to convergence |
 | Components | Case = average plate temperature under the footprint + P·t<sub>TIM</sub>/(k<sub>TIM</sub>·A). Junction = case + P·R<sub>jc</sub>. Headroom = the power scale factor at which the first component reaches its limit |
@@ -87,7 +89,6 @@ tests/              Node sanity checks
 ## Roadmap
 
 - ~~v2: 2D temperature map, discrete heat sources, TIM layer~~ (done)
-- Pump-curve matching (system operating point)
 - Flow distribution between parallel channels
 - Side-by-side design comparison, parameter sweeps, CSV export
 - Dielectric coolants and user-defined fluids; pin fins and turbulators

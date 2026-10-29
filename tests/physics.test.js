@@ -117,6 +117,35 @@ check('moving a source away from the channels makes it hotter', () => {
   assert.ok(isFinite(base));
 });
 
+console.log('Pump operating point');
+const withPump = (pump) => Object.assign({}, D.PRESETS.inverter.state, { flowSource: 'pump', pump });
+check('pump pressure = plate + loop pressure drop at the operating point', () => {
+  const op = P.operatingPoint(withPump(D.DEFAULT_PUMP));
+  assert.ok(op.ok, op.msg);
+  near(op.dpPump, op.dpPlate + op.dpLoop, 1e-3 * op.dpPump);
+});
+check('pump curve interpolation and end of curve', () => {
+  const pts = [[0, 100e3], [1e-3, 50e3], [2e-3, 0]];
+  near(P.pumpDp(pts, 0.5e-3), 75e3, 1e-6); near(P.pumpDp(pts, 3e-3), 0, 1e-9);
+});
+check('stronger pump → more flow; extra loop resistance → less flow', () => {
+  const base = P.operatingPoint(withPump(D.DEFAULT_PUMP)).q;
+  const strong = P.operatingPoint(withPump(Object.assign({}, D.DEFAULT_PUMP, { points: D.PUMPS.industrial.points }))).q;
+  const restrictive = P.operatingPoint(withPump(Object.assign({}, D.DEFAULT_PUMP, { extDp: 100e3 }))).q;
+  assert.ok(strong > base && restrictive < base, `${strong} > ${base} > ${restrictive}`);
+});
+check('effective state uses the operating-point flow', () => {
+  const s = withPump(D.DEFAULT_PUMP);
+  const { s: eff, op } = P.effectiveState(s);
+  assert.strictEqual(eff.flowMode, 'vol');
+  near(eff.flow, op.q, 1e-15);
+  near(P.solve(eff).dp, op.dpPlate, 1e-6 * op.dpPlate);
+});
+check('pump too weak is reported, not solved', () => {
+  const op = P.operatingPoint(withPump({ points: [[0, 1], [1e-3, 0]], extDp: 0, extQ: 0 }));
+  assert.ok(op.ok ? op.q < 1e-5 : true);
+});
+
 console.log('Units');
 check('1 gpm = 3.785 L/min', () => near(U.fromDisplay('volflow', 1, 'IMP') * 60e3, 3.78541, 1e-4));
 check('100 °C = 212 °F, round trip', () => { near(U.toDisplay('temp', 100, 'IMP'), 212, 1e-9); near(U.fromDisplay('temp', 212, 'IMP'), 100, 1e-9); });

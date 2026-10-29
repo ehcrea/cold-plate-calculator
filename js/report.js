@@ -27,8 +27,8 @@
   }
 
   // The built-in PDF fonts only cover WinAnsi; map the few symbols we use outside it.
-  const SUBS = { '₂': '2', '≤': '<=', '≥': '>=', 'ρ': 'rho', 'μ': 'µ', '→': '->', 'ε': 'eps', 'Δ': 'd', '−': '-', '…': '...', '–': '-', '—': '-', 'Ø': 'Ø', ' ': ' ', ' ': ' ' };
-  const clean = (t) => String(t).replace(/[₂≤≥ρμ→εΔ−…–—  ]/g, (c) => SUBS[c]);
+  const SUBS = { '≈': '~', '₂': '2', '≤': '<=', '≥': '>=', 'ρ': 'rho', 'μ': 'µ', '→': '->', 'ε': 'eps', 'Δ': 'd', '−': '-', '…': '...', '–': '-', '—': '-', 'Ø': 'Ø', ' ': ' ', ' ': ' ' };
+  const clean = (t) => String(t).replace(/[≈₂≤≥ρμ→εΔ−…–—  ]/g, (c) => SUBS[c]);
 
   // ---------- SVG → PNG ----------
 
@@ -120,7 +120,7 @@
         ['Fluid', FLUIDS[s.fluid].name],
         ['Inlet temperature', F('temp', s.Tin)],
         ['Inlet pressure', F('pressure', s.pIn)],
-        ['Flow rate', Units.format(flowQ, s.flow)],
+        ...flowRows(s, flowQ),
       ]],
       ['Heat input', s.heatArea === 'sources' ? [
         ['Heat applied as', `${s.sources.length} discrete heat source${s.sources.length === 1 ? '' : 's'}`],
@@ -132,6 +132,18 @@
       ]],
     ];
     return groups;
+  }
+
+  function flowRows(s, flowQ) {
+    if (s.flowSource !== 'pump') return [['Flow rate', Units.format(flowQ, s.flow)]];
+    const op = App.op();
+    const pumpName = CPData.PUMPS[s.pump.preset] ? CPData.PUMPS[s.pump.preset].name : `Custom curve (${s.pump.points.length} points)`;
+    const rows = [
+      ['Flow source', pumpName],
+      ['Rest of loop', s.pump.extQ > 0 ? `${Units.format('dpressure', s.pump.extDp)} at ${Units.format('volflow', s.pump.extQ)}` : 'none'],
+    ];
+    if (op && op.ok) rows.push(['Operating point', `${Units.format('volflow', op.q)} at ${Units.format('dpressure', op.dpPump)}`]);
+    return rows;
   }
 
   // ---------- Layout helpers ----------
@@ -401,12 +413,14 @@
     w.ensure(75);
     w.heading('Performance vs. flow rate');
     w.font(7.5, 'normal', INK3);
-    w.text('Thermal curve from the 2D model; pressure drop from the 1D hydraulic model.', PAGE.m, w.y + 1);
+    w.text(s.flowSource === 'pump'
+      ? 'Thermal curve from the 2D model. Right: pump curve vs. system curve (plate + rest of loop); the intersection is the operating point.'
+      : 'Thermal curve from the 2D model; pressure drop from the 1D hydraulic model.', PAGE.m, w.y + 1);
     w.y += 3;
     const chartY = w.y;
     w.font(8.5, 'bold', INK2);
     w.text(document.getElementById('chart1-title').textContent, PAGE.m, chartY + 3);
-    w.text('Pressure drop vs. flow', PAGE.m + colW + 8, chartY + 3);
+    w.text(document.getElementById('chart2-title').textContent, PAGE.m + colW + 8, chartY + 3);
     w.y = chartY + 5;
     const h1 = w.image(figs.chart1, colW, 55, PAGE.m);
     w.image(figs.chart2, colW, 55, PAGE.m + colW + 8);
