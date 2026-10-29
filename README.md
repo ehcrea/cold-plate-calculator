@@ -11,7 +11,7 @@ A browser-based tool for sizing liquid- and gas-cooled cold plates for **power e
 - Heat and pressure-drop curves against flow rate
 - Design warnings: erosion velocity, freezing and boiling margins, manifold maldistribution, Mach number and gas compressibility, material compatibility
 
-Switches between **SI and Imperial** units. Every design can be shared as a link, and the page can be printed or saved as a PDF.
+Switches between **SI and Imperial** units. **Export PDF** downloads a design report (inputs, results, plate drawing, breakdowns, performance curves, design checks), and every design can be shared as a link.
 
 > **v1 is a 1D engineering estimate (±20–30 %)** meant for concept sizing. Validate final designs with CFD or testing.
 
@@ -72,6 +72,7 @@ js/data.js          fluids, materials, presets
 js/physics.js       thermal / hydraulic solver (also runs in Node)
 js/drawing.js       plate top view and cross-section (SVG)
 js/charts.js        performance curves (SVG)
+js/report.js        PDF design report (jsPDF, loaded on demand)
 js/app.js           UI controller
 tests/              Node sanity checks
 ```

@@ -178,10 +178,19 @@
     });
 
     $('#share').addEventListener('click', async () => {
-      const url = location.href.split('#')[0] + '#d=' + encodeState();
+      const url = shareUrl();
       history.replaceState(null, '', url);
       try { await navigator.clipboard.writeText(url); toast('Link copied to clipboard'); }
       catch (err) { toast('Link updated in the address bar'); }
+    });
+    $('#export-pdf').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      const label = btn.textContent;
+      btn.textContent = 'Preparing…';
+      try { await Report.exportPdf(); toast('PDF report downloaded'); }
+      catch (err) { console.error(err); toast('PDF export failed — use Print → Save as PDF instead'); }
+      finally { btn.disabled = false; btn.textContent = label; }
     });
     $('#print').addEventListener('click', () => {
       const notes = $('.notes');
@@ -208,6 +217,8 @@
   function encodeState() {
     return btoa(unescape(encodeURIComponent(JSON.stringify({ s: state, u: Units.system }))));
   }
+  function shareUrl() { return location.href.split('#')[0] + '#d=' + encodeState(); }
+
   function loadSaved() {
     let saved = null;
     const m = location.hash.match(/#d=([^&]+)/);
@@ -318,10 +329,8 @@
     lg.append(a, r, b);
   }
 
-  function renderMetrics(res) {
-    const box = $('#metrics');
-    box.textContent = '';
-    if (!res.ok) { box.textContent = 'No results — resolve the errors above.'; return; }
+  /** Result rows [label, value, sub-label] shared by the results grid and the PDF report. */
+  function metricItems(res) {
     const g = res.geometry;
     const gas = res.props.phase === 'gas';
     const items = [
@@ -347,7 +356,14 @@
     const b = res.bounds;
     if (lo) items.push(['Q range (uniform flux … isothermal)', `${fmtPower((state.TsMax - state.Tin) / b.uniformFlux)} … ${fmtPower((state.TsMax - state.Tin) / b.isothermal)}`]);
     else items.push(['Peak T range (isothermal … uniform flux)', `${fmt('temp', state.Tin + state.Q * b.isothermal, { noUnit: true })} … ${fmt('temp', state.Tin + state.Q * b.uniformFlux)}`]);
-    for (const [k, v, s] of items) {
+    return items;
+  }
+
+  function renderMetrics(res) {
+    const box = $('#metrics');
+    box.textContent = '';
+    if (!res.ok) { box.textContent = 'No results — resolve the errors above.'; return; }
+    for (const [k, v, s] of metricItems(res)) {
       const d = document.createElement('div'); d.className = 'metric';
       const a = document.createElement('div'); a.className = 'k'; a.textContent = k;
       const c = document.createElement('div'); c.className = 'v'; c.textContent = v;
@@ -436,6 +452,15 @@
       fmtY: (v) => Units.fmtNumber(v), fmtYFull: (v) => `${Units.fmtNumber(v)} ${Units.label('dpressure')}`,
     });
   }
+
+  // Read-only hooks for the PDF report.
+  window.App = {
+    state: () => state,
+    result: () => lastResult,
+    appName: () => currentApp,
+    metricItems, fmtPower, shareUrl, toast,
+    rerender: update,
+  };
 
   // ---------- Init ----------
   populateSelects();
