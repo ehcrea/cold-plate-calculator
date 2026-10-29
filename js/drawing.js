@@ -163,6 +163,93 @@
 
     dimLine(svg, x0, y1 + 22, x1, y1 + 22, 'L ' + fmtLen(s.L), false);
     dimLine(svg, x0 - 22, y0, x0 - 22, y1, 'W ' + fmtLen(s.W), true);
+
+    // Heat sources (draggable in the app).
+    const view = { k, padL, padT };
+    if (s.heatArea === 'sources') drawSources(svg, s, view, true);
+    return view;
+  }
+
+  /** Source rectangles in plate coordinates (x along length, y along width, centre). */
+  function drawSources(svg, s, view, editable, results) {
+    const { k, padL, padT } = view;
+    (s.sources || []).forEach((src, i) => {
+      const x = padL + (src.x - src.w / 2) * 1e3 * k, y = padT + (src.y - src.h / 2) * 1e3 * k;
+      const w = src.w * 1e3 * k, h = src.h * 1e3 * k;
+      const g = el('g', { class: 'src-shape' + (editable ? ' draggable' : ''), 'data-i': i }, svg);
+      el('rect', { x, y, width: w, height: h, rx: 2, class: results ? 'src-outline' : 'src-rect' }, g);
+      const r = results && results[i];
+      const lines = r ? [src.name, 'Tj ' + Units.format('temp', r.Tj, { digits: 0 })] : [src.name, Units.fmtNumber(src.P, 0) + ' W'];
+      const maxLen = Math.max(...lines.map((l) => l.length));
+      const fs = Math.min(12, h / 3.2, (w - 6) / (maxLen * 0.6 + 1.2));
+      if (fs < 6.5) return; // too small to label legibly; the table and tooltip carry the values
+      if (r) {
+        // On the map, labels sit on a solid tag so they stay legible over any colour.
+        const tw = maxLen * fs * 0.6 + 8, thh = lines.length * (fs + 2) + 5;
+        el('rect', { x: x + w / 2 - tw / 2, y: y + h / 2 - thh / 2, width: tw, height: thh, rx: 3, class: 'src-tag' }, g);
+      }
+      lines.forEach((ln, li) => {
+        text(g, x + w / 2, y + h / 2 + (li - (lines.length - 1) / 2) * (fs + 2) + fs / 3, ln,
+          { class: 'src-label' + (li ? ' sub' : '') + (r ? ' plain' : ''), 'text-anchor': 'middle', 'font-size': fs });
+      });
+    });
+  }
+
+  // Sequential warm ramp (light → dark) for plate temperature.
+  const RAMP = ['#fdeeb1', '#fcc66b', '#f69240', '#e35a2a', '#b8282a', '#7a1424'];
+  function rampColor(f) {
+    f = Math.min(1, Math.max(0, f));
+    const p = f * (RAMP.length - 1), i = Math.min(RAMP.length - 2, Math.floor(p));
+    return hexToRgb(RAMP[i]).map((c, j) => Math.round(c + (hexToRgb(RAMP[i + 1])[j] - c) * (p - i)));
+  }
+
+  /** Plate temperature map with channel outlines, source labels and the hottest point. */
+  function drawMap(container, s, res, map) {
+    const avail = container.clientWidth || 760;
+    container.textContent = '';
+    const g = res.geometry;
+    const Lmm = s.L * 1e3, Wmm = s.W * 1e3;
+    const k = Math.min(Math.max(200, avail - 40) / Lmm, Math.min(380, Math.max(200, avail * 0.6)) / Wmm);
+    const padL = 14, padT = 14;
+    const w = Lmm * k + 2 * padL, h = Wmm * k + 2 * padT;
+    const svg = el('svg', { viewBox: `0 0 ${w.toFixed(1)} ${h.toFixed(1)}`, role: 'img',
+      'aria-label': `Plate temperature map, ${Units.format('temp', map.Tmin)} to ${Units.format('temp', map.Tmax)}` }, container);
+
+    const { nx, ny } = map.grid;
+    const c = document.createElement('canvas');
+    c.width = nx; c.height = ny;
+    const ctx = c.getContext('2d');
+    const img = ctx.createImageData(nx, ny);
+    const span = Math.max(1e-6, map.Tmax - map.Tmin);
+    for (let kk = 0; kk < nx * ny; kk++) {
+      const [r, gg, b] = rampColor((map.T[kk] - map.Tmin) / span);
+      img.data.set([r, gg, b, 255], kk * 4);
+    }
+    ctx.putImageData(img, 0, 0);
+    el('image', { href: c.toDataURL('image/png'), x: padL, y: padT, width: Lmm * k, height: Wmm * k, preserveAspectRatio: 'none' }, svg);
+    el('rect', { x: padL, y: padT, width: Lmm * k, height: Wmm * k, class: 'map-frame' }, svg);
+
+    const P = (x, y) => `${(padL + x * 1e3 * k).toFixed(1)},${(padT + y * 1e3 * k).toFixed(1)}`;
+    for (const path of Physics2D.channelPaths(s, g)) {
+      el('polyline', { points: path.pts.map(([x, y]) => P(x, y)).join(' '), class: 'map-channel', 'stroke-width': Math.max(1, g.a * 1e3 * k) }, svg);
+    }
+    if (s.heatArea === 'sources') drawSources(svg, s, { k, padL, padT }, false, map.sources);
+
+    const hx = padL + map.hottest.x * 1e3 * k, hy = padT + map.hottest.y * 1e3 * k;
+    el('circle', { cx: hx, cy: hy, r: 6, class: 'hot-mark' }, svg);
+    el('circle', { cx: hx, cy: hy, r: 1.5, class: 'hot-dot' }, svg);
+    return { k, padL, padT, svg };
+  }
+
+  /** Colour bar for the map legend. */
+  function mapLegend(container, map) {
+    container.textContent = '';
+    const lo = document.createElement('span'); lo.textContent = Units.format('temp', map.Tmin);
+    const bar = document.createElement('span'); bar.className = 'ramp';
+    bar.style.background = `linear-gradient(90deg, ${RAMP.join(', ')})`;
+    const hi = document.createElement('span'); hi.textContent = Units.format('temp', map.Tmax);
+    const mark = document.createElement('span'); mark.className = 'hot-key'; mark.textContent = '◯ hottest point';
+    container.append(lo, bar, hi, mark);
   }
 
   function drawSection(container, s, res) {
@@ -221,5 +308,5 @@
     text(svg, padL - 8, Y(s.t / 2) + 4, 't ' + fmtLen(s.t), { class: 'dim-text', 'text-anchor': 'end' });
   }
 
-  root.Drawing = { drawTop, drawSection, mix, cssColor };
+  root.Drawing = { drawTop, drawSection, drawMap, mapLegend, rampColor, mix, cssColor };
 })(window);

@@ -323,7 +323,6 @@
     if (r.Tout - s.Tin > 15) add('info', `Coolant temperature rise is ${F('dtemp', r.Tout - s.Tin)} — consider more flow for better uniformity.`);
     if (s.mode === 'capacity' && s.TsMax <= s.Tin) add('error', 'Max. surface temperature must be above the coolant inlet temperature.');
     const spread = r.w * (r.Tout - s.Tin) + r.Q * r.Rspread;
-    if (spread > 5) add('info', `Estimated surface temperature non-uniformity is ${F('dtemp', spread)} (battery modules typically target < ${F('dtemp', 5)}).`);
     if (r.eta < 0.6) add('info', `Channel wall fin efficiency is low (${(100 * r.eta).toFixed(0)} %) — plate material conducts poorly for this channel depth.`);
 
     const plateMass = rhoS * (s.W * s.L * s.t - g.fluidVol);
@@ -332,7 +331,7 @@
       geometry: g, issues,
       mdot, volFlow, propsIn, props: pr,
       v, vPort, vHeader, Re, Pr: r.Pr, regime: fl.regime, f: fl.f, Nu: fl.Nu, h: r.h, eta: r.eta,
-      Aeff: r.Aeff, NTU: r.NTU, eps: r.eps, lateralWeight: r.w,
+      Aeff: r.Aeff, Peff: r.Peff, NTU: r.NTU, eps: r.eps, lateralWeight: r.w,
       headRatio: r.headRatio, Q: r.Q, TsMax: r.TsMax, Tin: s.Tin, Tout: r.Tout, Rth: r.Rtot, Tboil: r.Tboil, Mach: r.Mach,
       flux: r.Q / g.heatArea, spread,
       resistances: { capacity: r.Rcap, convection: r.Rtot - r.Rcap - r.Rwall - r.Rspread, wall: r.Rwall, spreading: r.Rspread },

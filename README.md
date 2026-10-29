@@ -4,7 +4,9 @@
 
 A browser-based tool for sizing liquid- and gas-cooled cold plates for **power electronics**, **battery modules** and **fuel-cell systems**. Enter the plate, channel layout and coolant, and it estimates:
 
-- **Max. heat dissipation** at a given surface temperature limit, or **peak surface temperature** at a given heat load
+- **Component temperatures**: place IGBT modules, diodes, battery modules or any heat source on the plate (drag them on the layout). For each one you get plate, case and junction temperature, margin to its limit, and how far total power can rise before the first limit is reached
+- A **2D plate temperature map** with hover readout and the hottest point marked
+- **Max. heat dissipation** at a given surface temperature limit, or **peak surface temperature** at a given heat load (uniform heating)
 - Coolant outlet temperature, pressure drop and its breakdown, and hydraulic pump power
 - Thermal resistance breakdown (coolant capacity, convection, wall conduction, lateral spreading)
 - Reynolds number, flow regime, heat-transfer coefficient, fin efficiency and NTU
@@ -13,7 +15,7 @@ A browser-based tool for sizing liquid- and gas-cooled cold plates for **power e
 
 Switches between **SI and Imperial** units. **Export PDF** downloads a design report (inputs, results, plate drawing, breakdowns, performance curves, design checks), and every design can be shared as a link.
 
-> **v1 is a 1D engineering estimate (±20–30 %)** meant for concept sizing. Validate final designs with CFD or testing.
+> **v2 is an engineering estimate:** a 2D plate conduction model coupled to 1D channel hydraulics, meant for concept sizing (roughly ±15–30 %). Validate final designs with CFD or testing.
 
 ## Inputs
 
@@ -23,7 +25,7 @@ Switches between **SI and Imperial** units. **Export PDF** downloads a design re
 | Layout | Serpentine (1–6 parallel circuits), parallel Z-type, parallel U-type. Channels can run along the length or the width; edge margin, header size, port diameter and mirrored ports are adjustable |
 | Channel | Round, square or rectangular section; wall thickness to the heated face; wall roughness |
 | Coolant | Water (DI), ethylene glycol 30/50 %, propylene glycol 30/50 %, clean dry air, N₂, H₂. Inlet temperature and pressure; flow as volume, mass or standard flow (SLPM/SCFM) |
-| Thermal | Find max. heat (from a surface temperature limit) or find surface temperature (from a heat load). Heat applied over the whole face or the channel area only |
+| Heat input | Discrete heat sources (power, position, footprint, TIM thickness and conductivity, R<sub>jc</sub>, temperature limit), or uniform heat over the whole face or the channel area, with find max. heat or find surface temperature |
 
 Application presets: inverter/IGBT plate, EV battery cold plate, fuel-cell cooling plate, hydrogen gas-cooled plate, high-flux copper plate.
 
@@ -56,11 +58,15 @@ The tests check the correlations against textbook values, verify fluid propertie
 | Transition | Linear blend between Re 2300 and Re 4000 |
 | Bends | Darby 3-K for 180° returns |
 | Other losses | Channel entry/exit K = 0.5 + 1.0; headers K = 1.0 each; ports K = 1.5 each |
-| Plate conduction | Heated-face wall conduction, channel side walls as fins, lateral spreading between channels and at the edges |
+| 2D plate model | Finite-difference grid over the plate face (up to about 6,000 cells, solved with preconditioned conjugate gradient). In-plane conduction uses the local solid thickness. Cells above channels, port leads and headers are coupled to the coolant through the heated-face wall and the fin-corrected convective film. The coolant is marched along each channel path, and plate and coolant are solved alternately to convergence |
+| Components | Case = average plate temperature under the footprint + P·t<sub>TIM</sub>/(k<sub>TIM</sub>·A). Junction = case + P·R<sub>jc</sub>. Headroom = the power scale factor at which the first component reaches its limit |
+| Plate conduction (1D) | Heated-face wall conduction, channel side walls as fins, lateral spreading between channels and at the edges |
 | Plate temperature | Blends between the uniform-heat-flux limit (conservative) and the isothermal-plate ε-NTU limit (ideal), based on the plate's lateral conductance vs. the coolant heat capacity rate |
 | Fluid properties | Temperature-dependent tables for liquids. Ideal gas with Sutherland viscosity for gases. Evaluated at the mean bulk temperature |
 
-**Not modelled:** TIM and contact resistance, discrete heat sources and hot spots, flow maldistribution (warning only), two-phase flow, turbulators and pin fins, gas compressibility within the plate.
+The 1D model supplies the pressure drop, heat-transfer coefficient and resistance breakdown, plus a quick cross-check. The 2D model supplies the headline temperatures, the map and the component results.
+
+**Not modelled:** spreading through the plate thickness under very small sources, contact resistance beyond the TIM layer, flow maldistribution (warning only), two-phase flow, turbulators and pin fins, gas compressibility within the plate.
 
 ## Project layout
 
@@ -69,7 +75,8 @@ index.html          page structure
 css/style.css       styles (light/dark, responsive, print)
 js/units.js         SI ↔ Imperial conversion
 js/data.js          fluids, materials, presets
-js/physics.js       thermal / hydraulic solver (also runs in Node)
+js/physics.js       1D thermal / hydraulic solver (also runs in Node)
+js/physics2d.js     2D plate temperature model with heat sources (also runs in Node)
 js/drawing.js       plate top view and cross-section (SVG)
 js/charts.js        performance curves (SVG)
 js/report.js        PDF design report (jsPDF, loaded on demand)
@@ -79,5 +86,8 @@ tests/              Node sanity checks
 
 ## Roadmap
 
-- **v2:** 2D finite-difference temperature map, discrete heat-source footprints, TIM layer
-- **v3:** side-by-side design comparison, CSV/PDF report export, saved design library
+- ~~v2: 2D temperature map, discrete heat sources, TIM layer~~ (done)
+- Pump-curve matching (system operating point)
+- Flow distribution between parallel channels
+- Side-by-side design comparison, parameter sweeps, CSV export
+- Dielectric coolants and user-defined fluids; pin fins and turbulators

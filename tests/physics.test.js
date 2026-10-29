@@ -73,6 +73,50 @@ check('channels that do not fit are rejected', () => {
   assert.ok(!r.ok);
 });
 
+console.log('2D plate model');
+const P2 = require('../js/physics2d.js');
+for (const [id, p] of Object.entries(D.PRESETS)) {
+  check(`preset "${id}" 2D energy balance closes`, () => {
+    const { map } = P2.evaluate(p.state);
+    near(map.QtoFluid, map.Qin, 1e-3 * map.Qin + 1e-6, 'heat to coolant');
+    assert.ok(map.Tmax > map.Tout && map.Tmin >= p.state.Tin - 1e-6);
+  });
+}
+check('uniform copper plate: 2D capacity within 15 % of 1D', () => {
+  const s = Object.assign({}, D.PRESETS.copper.state);
+  const { base, map } = P2.evaluate(s);
+  assert.ok(Math.abs(map.Qtotal / base.Q - 1) < 0.15, `1D ${base.Q.toFixed(0)} W vs 2D ${map.Qtotal.toFixed(0)} W`);
+});
+check('source: junction > case > plate, TIM drop = P·t/(k·A)', () => {
+  const { map } = P2.evaluate(D.PRESETS.inverter.state);
+  const src = D.PRESETS.inverter.state.sources[0], r = map.sources[0];
+  assert.ok(r.Tj > r.Tcase && r.Tcase > r.Tplate);
+  near(r.Tcase - r.Tplate, src.P * src.tim / (src.kTim * src.w * src.h), 1e-9);
+  near(r.Tj - r.Tcase, src.P * src.rjc, 1e-9);
+});
+check('headroom scales the hottest junction exactly to its limit', () => {
+  const s = D.PRESETS.inverter.state;
+  const { map } = P2.evaluate(s);
+  const f = map.headroom;
+  const scaled = Object.assign({}, s, { sources: s.sources.map((x) => Object.assign({}, x, { P: x.P * f })) });
+  const r2 = P2.evaluate(scaled).map;
+  const worst = Math.max(...r2.sources.map((r) => r.Tj - r.limit));
+  near(worst, 0, 1.5); // properties shift slightly with the higher coolant temperature
+});
+check('2D grid refinement changes battery peak by < 0.5 K', () => {
+  const s = D.PRESETS.battery.state;
+  const a = P2.evaluate(s, { maxCells: 3000 }).map.Tmax, b = P2.evaluate(s, { maxCells: 12000 }).map.Tmax;
+  near(a, b, 0.5);
+});
+check('moving a source away from the channels makes it hotter', () => {
+  const s = D.PRESETS.inverter.state;
+  const base = P2.evaluate(s).map.sources[0].Tj;
+  const off = Object.assign({}, s, { sources: [Object.assign({}, s.sources[0], { x: 0.02, y: 0.02, w: 0.03, h: 0.03 })] });
+  const one = Object.assign({}, s, { sources: [Object.assign({}, s.sources[0], { w: 0.03, h: 0.03 })] });
+  assert.ok(P2.evaluate(off).map.sources[0].Tplate > P2.evaluate(one).map.sources[0].Tplate);
+  assert.ok(isFinite(base));
+});
+
 console.log('Units');
 check('1 gpm = 3.785 L/min', () => near(U.fromDisplay('volflow', 1, 'IMP') * 60e3, 3.78541, 1e-4));
 check('100 °C = 212 °F, round trip', () => { near(U.toDisplay('temp', 100, 'IMP'), 212, 1e-9); near(U.fromDisplay('temp', 212, 'IMP'), 100, 1e-9); });

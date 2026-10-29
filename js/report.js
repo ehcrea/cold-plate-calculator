@@ -74,9 +74,11 @@
     html.setAttribute('data-theme', 'light');
     App.rerender();
     try {
+      // The thermal curve is computed in the background; wait for it to finish drawing.
+      for (let i = 0; i < 100 && !document.querySelector('#chart1 svg') && App.thermal(); i++) await new Promise((r) => setTimeout(r, 50));
       const grab = (sel) => { const s = document.querySelector(sel + ' svg'); return s ? svgToPng(s) : Promise.resolve(null); };
-      const [top, section, chart1, chart2] = await Promise.all([grab('#drawing'), grab('#section'), grab('#chart1'), grab('#chart2')]);
-      return { top, section, chart1, chart2 };
+      const [top, section, map, chart1, chart2] = await Promise.all([grab('#drawing'), grab('#section'), grab('#map'), grab('#chart1'), grab('#chart2')]);
+      return { top, section, map, chart1, chart2 };
     } finally {
       if (prev === null) html.removeAttribute('data-theme'); else html.setAttribute('data-theme', prev);
       App.rerender();
@@ -120,10 +122,13 @@
         ['Inlet pressure', F('pressure', s.pIn)],
         ['Flow rate', Units.format(flowQ, s.flow)],
       ]],
-      ['Thermal requirement', [
+      ['Heat input', s.heatArea === 'sources' ? [
+        ['Heat applied as', `${s.sources.length} discrete heat source${s.sources.length === 1 ? '' : 's'}`],
+        ['Total power', App.fmtPower(s.sources.reduce((a, x) => a + x.P, 0))],
+      ] : [
+        ['Heat applied as', s.heatArea === 'full' ? 'Uniform over whole plate face' : 'Uniform over channel area'],
         ['Mode', s.mode === 'capacity' ? 'Find max. heat at surface limit' : 'Find surface temperature at heat load'],
         s.mode === 'capacity' ? ['Max. surface temperature', F('temp', s.TsMax)] : ['Heat load', App.fmtPower(s.Q)],
-        ['Heat applied over', s.heatArea === 'full' ? 'Whole plate face' : 'Channel area only'],
       ]],
     ];
     return groups;
@@ -220,7 +225,8 @@
   /** Build the report and download it; with { blob: true } return the PDF as a Blob instead. */
   async function exportPdf(opts = {}) {
     const res = App.result();
-    if (!res || !res.ok) throw new Error('Resolve the input errors before exporting.');
+    const th = App.thermal();
+    if (!res || !res.ok || !th) throw new Error('Resolve the input errors before exporting.');
     const s = App.state();
     const [{ jsPDF }, figs] = await Promise.all([loadJsPdf(), captureFigures()]);
     const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
@@ -240,21 +246,35 @@
 
     // Headline
     const capacity = s.mode === 'capacity';
+    const map = App.map();
     pdf.setFillColor(240, 245, 252);
     pdf.roundedRect(PAGE.m, w.y, contentW, 24, 2, 2, 'F');
+    let label, value, sub;
+    const inlet = `${Units.format('temp', s.Tin)} ${fluid.short} inlet`;
+    if (th.src) {
+      const hot = map.sources.reduce((a, r) => (r.Tj > a.Tj ? r : a));
+      label = `Hottest component: ${hot.name}`;
+      value = Units.format('temp', hot.Tj);
+      sub = `${App.fmtPower(th.Q)} total, ${inlet}; power headroom x${map.headroom.toFixed(2)}`;
+    } else if (capacity) {
+      label = 'Max. heat dissipation';
+      value = App.fmtPower(th.Q);
+      sub = `peak surface <= ${Units.format('temp', s.TsMax)}, ${inlet}`;
+    } else {
+      label = 'Peak surface temperature';
+      value = Units.format('temp', th.Tpeak);
+      sub = `at ${App.fmtPower(s.Q)}, ${inlet}`;
+    }
     w.font(9, 'normal', INK2);
-    w.text(capacity ? 'Max. heat dissipation' : 'Peak surface temperature', PAGE.m + 5, w.y + 6.5);
+    w.text(label, PAGE.m + 5, w.y + 6.5);
     w.font(22, 'bold', ACCENT);
-    w.text(capacity ? App.fmtPower(res.Q) : Units.format('temp', res.TsMax), PAGE.m + 5, w.y + 16);
+    w.text(value, PAGE.m + 5, w.y + 16);
     w.font(8, 'normal', INK3);
-    const sub = capacity
-      ? `surface <= ${Units.format('temp', s.TsMax)}, ${Units.format('temp', s.Tin)} ${fluid.short} inlet`
-      : `at ${App.fmtPower(s.Q)}, ${Units.format('temp', s.Tin)} ${fluid.short} inlet`;
     w.text(sub, PAGE.m + 5, w.y + 21);
     const side = [
-      ['Coolant outlet', Units.format('temp', res.Tout)],
+      th.src ? ['Peak plate surface', Units.format('temp', th.Tpeak)] : ['Coolant outlet', Units.format('temp', th.Tout)],
       ['Pressure drop', Units.format('dpressure', res.dp)],
-      ['Thermal resistance', Units.format('rth', res.Rth, { digits: 4 })],
+      th.src ? ['Coolant outlet', Units.format('temp', th.Tout)] : ['Thermal resistance', Units.format('rth', th.Rth, { digits: 4 })],
     ];
     side.forEach(([k, v], i) => {
       const x = PAGE.m + 80 + i * 33;
@@ -270,10 +290,45 @@
     const topH = w.image(figs.top, contentW, 80);
     w.y += topH + 1;
     w.font(7.5, 'normal', INK3);
-    w.text(`Channels coloured by coolant temperature: ${Units.format('temp', res.Tin)} (inlet) to ${Units.format('temp', res.Tout)} (outlet).`, PAGE.m, w.y + 3);
+    w.text(`Channels coloured by coolant temperature: ${Units.format('temp', s.Tin)} (inlet) to ${Units.format('temp', th.Tout)} (outlet).`, PAGE.m, w.y + 3);
     w.y += 6;
     const secH = w.image(figs.section, contentW, 28);
     w.y += secH + 2;
+
+    // Temperature map
+    if (figs.map && map) {
+      w.ensure(80);
+      w.heading('Plate surface temperature (2D)');
+      const mh = w.image(figs.map, contentW, 80);
+      w.y += mh + 1;
+      w.font(7.5, 'normal', INK3);
+      w.text(`Colour scale ${Units.format('temp', map.Tmin)} (light) to ${Units.format('temp', map.Tmax)} (dark red); ring marks the hottest point. Grid ${map.grid.nx} x ${map.grid.ny} cells.`, PAGE.m, w.y + 3);
+      w.y += 6;
+    }
+
+    // Components
+    if (th.src && map.sources.length) {
+      w.ensure(20 + 6 * map.sources.length);
+      w.heading('Component temperatures');
+      const cols = [['Component', 0, 'left'], ['Power', 52, 'right'], ['Plate avg / max', 88, 'right'], ['Case', 108, 'right'], ['Junction', 128, 'right'], ['Limit', 145, 'right'], ['Margin', 162, 'right'], ['Status', 180, 'right']];
+      w.font(7.5, 'normal', INK3);
+      cols.forEach(([t, x, al]) => w.text(t, PAGE.m + x, w.y + 3, { align: al }));
+      w.y += 4.5;
+      w.rule();
+      for (const r of App.sourceRows(map)) {
+        w.ensure(6);
+        const vals = [r.name, r.P, r.plate, r.tcase, r.tj, r.limit, r.margin, r.ok ? 'OK' : 'OVER LIMIT'];
+        vals.forEach((v, i) => {
+          const [, x, al] = cols[i];
+          if (i === 7) w.font(8, 'bold', r.ok ? [0, 131, 0] : LEVEL_COLORS.error);
+          else w.font(8, i === 4 ? 'bold' : 'normal', INK);
+          w.text(v, PAGE.m + x, w.y + 4, { align: al });
+        });
+        w.y += 5.5;
+        w.rule();
+      }
+      w.y += 3;
+    }
 
     // Warnings
     const issues = (res.issues || []).slice().sort((a, b) => ['error', 'warn', 'info'].indexOf(a.level) - ['error', 'warn', 'info'].indexOf(b.level));
@@ -345,6 +400,9 @@
     // Charts
     w.ensure(75);
     w.heading('Performance vs. flow rate');
+    w.font(7.5, 'normal', INK3);
+    w.text('Thermal curve from the 2D model; pressure drop from the 1D hydraulic model.', PAGE.m, w.y + 1);
+    w.y += 3;
     const chartY = w.y;
     w.font(8.5, 'bold', INK2);
     w.text(document.getElementById('chart1-title').textContent, PAGE.m, chartY + 3);
@@ -357,10 +415,10 @@
     // Method
     w.heading('Method and limits');
     const method = [
-      'This is a 1D thermal-resistance and pressure-drop estimate for concept sizing. Expect roughly ±20-30 % compared with CFD or test data.',
+      'This is an engineering estimate for concept sizing: a 2D plate conduction model coupled to 1D channel hydraulics. Expect roughly ±15-30 % compared with CFD or test data.',
       'Laminar flow: Shah & London Nu(H1) and f·Re for the channel aspect ratio with entry corrections. Turbulent flow: Gnielinski with Haaland friction. Re 2300-4000 is blended.',
-      'Channel walls are treated as fins, with conduction through the heated-face wall and lateral spreading. Plate temperature is blended between the uniform-flux (conservative) and isothermal-plate (ideal) limits.',
-      'Not modelled: TIM and contact resistance, discrete heat sources, flow maldistribution (warning only), two-phase flow, gas compressibility within the plate.',
+      '2D plate model: finite-difference grid over the plate face with in-plane conduction through the local solid thickness. Cells above channels and headers are coupled to the coolant through the heated-face wall and convective film (fin-corrected), and the coolant is marched along each channel path. Components add a TIM layer (t/(k*A)) and junction-to-case resistance.',
+      'Not modelled: through-thickness spreading under small sources, contact resistance beyond the TIM layer, flow maldistribution (warning only), two-phase flow, gas compressibility within the plate.',
     ];
     w.font(8, 'normal', INK2);
     for (const para of method) {
@@ -384,7 +442,7 @@
       pdf.setDrawColor(...RULE); pdf.setLineWidth(0.2);
       pdf.line(PAGE.m, PAGE.h - 11, PAGE.w - PAGE.m, PAGE.h - 11);
       pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(...INK3);
-      pdf.text('Cold Plate Calculator v1 · 1D engineering estimate, validate final designs by CFD or test', PAGE.m, PAGE.h - 7);
+      pdf.text('Cold Plate Calculator v2 · engineering estimate, validate final designs by CFD or test', PAGE.m, PAGE.h - 7);
       pdf.text(`Page ${i} of ${pages}`, PAGE.w - PAGE.m, PAGE.h - 7, { align: 'right' });
     }
 

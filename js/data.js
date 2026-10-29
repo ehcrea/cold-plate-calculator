@@ -105,7 +105,12 @@
         layout: 'serpentine', orient: 'length', count: 6, circuits: 1, margin: 0.010, header: 0.012, headerDepth: 0, portD: 0.010, mirror: false,
         fluid: 'eg50', pIn: 2.0e5, Tin: 50,
         flowMode: 'vol', flow: 8 * L_PER_MIN,
-        mode: 'capacity', TsMax: 75, Q: 2000, heatArea: 'full',
+        mode: 'capacity', TsMax: 75, Q: 2000, heatArea: 'sources',
+        sources: [
+          { name: 'Phase U', P: 600, x: 0.065, y: 0.1, w: 0.05, h: 0.09, tim: 0.0001, kTim: 3, rjc: 0.06, Tlimit: 150 },
+          { name: 'Phase V', P: 600, x: 0.15, y: 0.1, w: 0.05, h: 0.09, tim: 0.0001, kTim: 3, rjc: 0.06, Tlimit: 150 },
+          { name: 'Phase W', P: 600, x: 0.235, y: 0.1, w: 0.05, h: 0.09, tim: 0.0001, kTim: 3, rjc: 0.06, Tlimit: 150 },
+        ],
       },
     },
     battery: {
@@ -116,7 +121,15 @@
         layout: 'parallelZ', orient: 'length', count: 10, circuits: 1, margin: 0.010, header: 0.025, headerDepth: 0.0035, portD: 0.012, mirror: false,
         fluid: 'eg50', pIn: 1.8e5, Tin: 20,
         flowMode: 'vol', flow: 5 * L_PER_MIN,
-        mode: 'load', TsMax: 35, Q: 800, heatArea: 'full',
+        mode: 'load', TsMax: 35, Q: 800, heatArea: 'sources',
+        sources: [
+          { name: 'Module 1', P: 130, x: 0.11, y: 0.08, w: 0.17, h: 0.12, tim: 0.001, kTim: 3, rjc: 0, Tlimit: 45 },
+          { name: 'Module 2', P: 130, x: 0.3, y: 0.08, w: 0.17, h: 0.12, tim: 0.001, kTim: 3, rjc: 0, Tlimit: 45 },
+          { name: 'Module 3', P: 130, x: 0.49, y: 0.08, w: 0.17, h: 0.12, tim: 0.001, kTim: 3, rjc: 0, Tlimit: 45 },
+          { name: 'Module 4', P: 130, x: 0.11, y: 0.22, w: 0.17, h: 0.12, tim: 0.001, kTim: 3, rjc: 0, Tlimit: 45 },
+          { name: 'Module 5', P: 130, x: 0.3, y: 0.22, w: 0.17, h: 0.12, tim: 0.001, kTim: 3, rjc: 0, Tlimit: 45 },
+          { name: 'Module 6', P: 130, x: 0.49, y: 0.22, w: 0.17, h: 0.12, tim: 0.001, kTim: 3, rjc: 0, Tlimit: 45 },
+        ],
       },
     },
     fuelcell: {
@@ -128,6 +141,7 @@
         fluid: 'water', pIn: 2.5e5, Tin: 65,
         flowMode: 'vol', flow: 10 * L_PER_MIN,
         mode: 'capacity', TsMax: 80, Q: 3000, heatArea: 'full',
+        sources: [],
       },
     },
     hydrogen: {
@@ -139,6 +153,7 @@
         fluid: 'h2', pIn: 5.0e5, Tin: 25,
         flowMode: 'mass', flow: 0.0005,
         mode: 'capacity', TsMax: 60, Q: 300, heatArea: 'full',
+        sources: [],
       },
     },
     copper: {
@@ -150,6 +165,7 @@
         fluid: 'water', pIn: 2.0e5, Tin: 25,
         flowMode: 'vol', flow: 4 * L_PER_MIN,
         mode: 'capacity', TsMax: 65, Q: 1500, heatArea: 'channels',
+        sources: [],
       },
     },
   };

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cold Plate Calculator</title>
   <meta name="description" content="Estimate heat dissipation, coolant temperature rise and pressure drop of liquid- and gas-cooled cold plates for power electronics, batteries and fuel cells.">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=7">
 </head>
 <body>
   <header class="topbar">
@@ -13,7 +13,7 @@
       <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="7" width="26" height="18" rx="3"/><path d="M8 12h16M8 16h16M8 20h16" /></svg>
       <div>
         <h1>Cold Plate Calculator</h1>
-        <p class="subtitle">Liquid &amp; gas cooled plates · v1 · 1D engineering estimate</p>
+        <p class="subtitle">Liquid &amp; gas cooled plates · v2 · 2D plate model</p>
       </div>
     </div>
     <div class="toolbar">
@@ -134,21 +134,32 @@
       </fieldset>
 
       <fieldset>
-        <legend><span class="step">5</span>Thermal requirement</legend>
-        <div class="seg seg-wide" role="radiogroup" aria-label="Calculation mode" id="mode">
-          <button type="button" role="radio" data-mode="capacity" aria-checked="true">Find max. heat</button>
-          <button type="button" role="radio" data-mode="load">Find surface temp.</button>
+        <legend><span class="step">5</span>Heat input</legend>
+        <label>Heat applied as
+          <select data-key="heatArea">
+            <option value="sources">Discrete heat sources (components)</option>
+            <option value="full">Uniform over whole plate face</option>
+            <option value="channels">Uniform over channel area</option>
+          </select>
+        </label>
+        <div data-show="uniform">
+          <div class="seg seg-wide" role="radiogroup" aria-label="Calculation mode" id="mode">
+            <button type="button" role="radio" data-mode="capacity" aria-checked="true">Find max. heat</button>
+            <button type="button" role="radio" data-mode="load">Find surface temp.</button>
+          </div>
+          <div class="grid2">
+            <label data-show="capacity">Max. surface temp. <span class="u" data-unit="temp"></span><input type="number" step="any" data-key="TsMax" data-q="temp"></label>
+            <label data-show="load">Heat load <span class="u" data-unit="power"></span><input type="number" step="any" min="0" data-key="Q" data-q="power"></label>
+          </div>
         </div>
-        <div class="grid2">
-          <label data-show="capacity">Max. surface temp. <span class="u" data-unit="temp"></span><input type="number" step="any" data-key="TsMax" data-q="temp"></label>
-          <label data-show="load">Heat load <span class="u" data-unit="power"></span><input type="number" step="any" min="0" data-key="Q" data-q="power"></label>
-          <label>Heat applied over
-            <select data-key="heatArea">
-              <option value="full">Whole plate face</option>
-              <option value="channels">Channel area only</option>
-            </select>
-          </label>
-        </div>
+      </fieldset>
+
+      <fieldset data-show="sources">
+        <legend><span class="step">6</span>Heat sources</legend>
+        <p class="hint">Position is the centre of each component, from the plate's top-left corner. You can also drag components on the plate layout.</p>
+        <div id="sources-list"></div>
+        <button type="button" class="btn" id="add-source">+ Add heat source</button>
+        <p class="hint" id="sources-total"></p>
       </fieldset>
     </form>
 
@@ -178,6 +189,21 @@
       </div>
 
       <div class="card">
+        <div class="card-head">
+          <h2>Plate surface temperature (2D)</h2>
+          <div class="temp-legend" id="map-legend"></div>
+        </div>
+        <div class="map-wrap" id="map"></div>
+        <p class="card-note map-note">Hover over the map to read the local temperature. Channel paths are shown in white.</p>
+      </div>
+
+      <div class="card" id="sources-card" hidden>
+        <h2>Component temperatures</h2>
+        <p class="card-note">Plate = average plate surface under the footprint. Case = plate + TIM drop. Junction = case + P·R<sub>jc</sub>.</p>
+        <div class="table-wrap" id="sources-table"></div>
+      </div>
+
+      <div class="card">
         <h2>Results</h2>
         <div class="metrics" id="metrics"></div>
       </div>
@@ -185,7 +211,7 @@
       <div class="grid-cards">
         <div class="card">
           <h2>Thermal resistance breakdown</h2>
-          <p class="card-note">Peak surface → coolant inlet. The largest share is where to improve.</p>
+          <p class="card-note">1D model, uniform heat: peak surface → coolant inlet. The largest share is where to improve.</p>
           <div id="rth-bar"></div>
         </div>
         <div class="card">
@@ -212,7 +238,9 @@
           <p>This is a 1D thermal-resistance and pressure-drop model for concept sizing. Expect roughly ±20–30 % compared with CFD or test data. Validate final designs by simulation or measurement.</p>
           <ul>
             <li><b>Heat transfer.</b> Laminar flow uses Shah &amp; London fully developed Nu<sub>H1</sub> and f·Re for the channel aspect ratio, plus a Hausen-type thermal-entry correction per straight pass. Turbulent flow uses Gnielinski with a short-duct correction. Between Re 2300 and 4000 the two are blended linearly. Bends are assumed to restart the boundary layer, and Dean-vortex enhancement is ignored, which is conservative.</li>
-            <li><b>Plate conduction.</b> The walls between channels act as fins. Heat is conducted through the heated-face wall and spreads laterally between channels and at the plate edges. Lateral conduction along the plate blends the result between two limits. The <i>uniform heat flux</i> limit (hottest point at the outlet) is conservative. The <i>isothermal plate</i> limit (ε-NTU) is ideal.</li>
+            <li><b>2D plate model.</b> The plate face is divided into a grid of up to about 6,000 cells. Heat conducts in-plane through the local solid thickness. Cells above channels and headers are coupled to the coolant through the heated-face wall and the convective film. The coolant is marched along each channel path, and the plate and coolant are solved alternately until they agree. This model gives the map, the peak temperature and the component temperatures. Each component adds a TIM layer (t/(k·A)) and its junction-to-case resistance. Spreading through the plate thickness under small components is not modelled, so very small, intense sources read slightly optimistic.</li>
+            <li><b>1D model.</b> Used for the pressure drop, heat-transfer coefficient and resistance breakdown, and as a quick cross-check.</li>
+            <li><b>Plate conduction (1D).</b> The walls between channels act as fins. Heat is conducted through the heated-face wall and spreads laterally between channels and at the plate edges. Lateral conduction along the plate blends the result between two limits. The <i>uniform heat flux</i> limit (hottest point at the outlet) is conservative. The <i>isothermal plate</i> limit (ε-NTU) is ideal.</li>
             <li><b>Pressure drop.</b> Friction uses Shah's apparent friction factor (laminar, developing) and Haaland's (turbulent). 180° bends use the Darby 3-K method. Fixed loss coefficients cover channel entry and exit (0.5 + 1.0), headers (1.0 each, at header velocity) and ports (1.5 each, at port velocity).</li>
             <li><b>Flow distribution.</b> Parallel layouts assume equal flow in every channel. A warning appears when the header velocity head is large compared with the channel pressure drop.</li>
             <li><b>Fluids.</b> Properties are evaluated at the mean bulk temperature. Glycol data are for concentrations by volume and are approximate (±5–10 %). Gases are treated as ideal and incompressible within the plate, with properties at the inlet pressure.</li>
@@ -225,12 +253,13 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script src="js/units.js"></script>
-  <script src="js/data.js"></script>
-  <script src="js/physics.js"></script>
-  <script src="js/drawing.js"></script>
-  <script src="js/charts.js"></script>
-  <script src="js/report.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/units.js?v=7"></script>
+  <script src="js/data.js?v=7"></script>
+  <script src="js/physics.js?v=7"></script>
+  <script src="js/physics2d.js?v=7"></script>
+  <script src="js/drawing.js?v=7"></script>
+  <script src="js/charts.js?v=7"></script>
+  <script src="js/report.js?v=7"></script>
+  <script src="js/app.js?v=7"></script>
 </body>
 </html>
