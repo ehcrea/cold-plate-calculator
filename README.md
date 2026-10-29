@@ -1,5 +1,7 @@
 # Cold Plate Calculator
 
+**Live:** https://ehcrea.github.io/cold-plate-calculator/
+
 A browser-based tool for sizing liquid- and gas-cooled cold plates for **power electronics**, **battery modules** and **fuel-cell systems**. Enter the plate, channel layout and coolant, and it estimates:
 
 - **Max. heat dissipation** at a given surface temperature limit, or **peak surface temperature** at a given heat load
