@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cold Plate Calculator</title>
+  <meta name="description" content="Estimate heat dissipation, coolant temperature rise and pressure drop of liquid- and gas-cooled cold plates for power electronics, batteries and fuel cells.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="7" width="26" height="18" rx="3"/><path d="M8 12h16M8 16h16M8 20h16" /></svg>
+      <div>
+        <h1>Cold Plate Calculator</h1>
+        <p class="subtitle">Liquid &amp; gas cooled plates · v1 · 1D engineering estimate</p>
+      </div>
+    </div>
+    <div class="toolbar">
+      <label class="preset">
+        <span class="sr-only">Application preset</span>
+        <select id="preset" aria-label="Application preset">
+          <option value="">Load application preset…</option>
+        </select>
+      </label>
+      <div class="seg" role="radiogroup" aria-label="Unit system" id="units">
+        <button type="button" role="radio" data-units="SI" aria-checked="true">SI</button>
+        <button type="button" role="radio" data-units="IMP" aria-checked="false">Imperial</button>
+      </div>
+      <button type="button" class="btn" id="share" title="Copy a link containing this design">Copy link</button>
+      <button type="button" class="btn" id="print" title="Print or save as PDF">Print</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- ================= INPUTS ================= -->
+    <form class="inputs" id="form" autocomplete="off" novalidate>
+      <fieldset>
+        <legend><span class="step">1</span>Plate</legend>
+        <div class="grid3">
+          <label>Length <span class="u" data-unit="length"></span><input type="number" step="any" min="0" data-key="L" data-q="length"></label>
+          <label>Width <span class="u" data-unit="length"></span><input type="number" step="any" min="0" data-key="W" data-q="length"></label>
+          <label>Thickness <span class="u" data-unit="length"></span><input type="number" step="any" min="0" data-key="t" data-q="length"></label>
+        </div>
+        <label>Material
+          <select data-key="material" id="material"></select>
+        </label>
+        <div class="grid2" data-show="custom-material">
+          <label>Conductivity <span class="u" data-unit="conductivity"></span><input type="number" step="any" min="0" data-key="kCustom" data-q="conductivity"></label>
+          <label>Density <span class="u" data-unit="density"></span><input type="number" step="any" min="0" data-key="rhoCustom" data-q="density"></label>
+        </div>
+        <p class="hint" id="material-hint"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend><span class="step">2</span>Flow layout</legend>
+        <div class="layout-picker" role="radiogroup" aria-label="Channel layout" id="layout-picker">
+          <button type="button" role="radio" data-layout="serpentine" aria-checked="true">
+            <svg viewBox="0 0 60 36" aria-hidden="true"><path d="M2 6H50a5 5 0 0 1 0 10H10a5 5 0 0 0 0 10H58"/></svg>
+            <span>Serpentine</span>
+          </button>
+          <button type="button" role="radio" data-layout="parallelZ" aria-checked="false">
+            <svg viewBox="0 0 60 36" aria-hidden="true"><path d="M2 4H10V32M10 9H50M10 18H50M10 27H50M50 4V32H58"/></svg>
+            <span>Parallel · Z</span>
+          </button>
+          <button type="button" role="radio" data-layout="parallelU" aria-checked="false">
+            <svg viewBox="0 0 60 36" aria-hidden="true"><path d="M2 4H10V32M10 9H50M10 18H50M10 27H50M50 4V32M50 4H58"/></svg>
+            <span>Parallel · U</span>
+          </button>
+        </div>
+        <div class="grid2">
+          <label>Channels run
+            <select data-key="orient">
+              <option value="length">Along length</option>
+              <option value="width">Along width</option>
+            </select>
+          </label>
+          <label><span id="count-label">Passes</span><input type="number" step="1" min="1" data-key="count" data-q="int"></label>
+        </div>
+        <div class="grid2">
+          <label data-show="serpentine">Parallel circuits<input type="number" step="1" min="1" max="6" data-key="circuits" data-q="int"></label>
+          <label>Edge margin <span class="u" data-unit="length"></span><input type="number" step="any" min="0" data-key="margin" data-q="length"></label>
+        </div>
+        <div class="grid2" data-show="parallel">
+          <label>Header width <span class="u" data-unit="length"></span><input type="number" step="any" min="0" data-key="header" data-q="length"></label>
+          <label>Header depth <span class="u" data-unit="length"></span><input type="number" step="any" min="0" data-key="headerDepth" data-q="length" placeholder="= channel"></label>
+        </div>
+        <div class="grid2">
+          <label>Port inner Ø <span class="u" data-unit="length"></span><input type="number" step="any" min="0" data-key="portD" data-q="length"></label>
+          <label class="check"><input type="checkbox" data-key="mirror"> Mirror ports</label>
+        </div>
+        <p class="hint" id="port-hint"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend><span class="step">3</span>Channel section</legend>
+        <div class="seg seg-wide" role="radiogroup" aria-label="Channel shape" id="shape">
+          <button type="button" role="radio" data-shape="round" aria-checked="false">Round</button>
+          <button type="button" role="radio" data-shape="square" aria-checked="false">Square</button>
+          <button type="button" role="radio" data-shape="rect" aria-checked="true">Rectangular</button>
+        </div>
+        <div class="grid2">
+          <label data-show="round">Diameter <span class="u" data-unit="length"></span><input type="number" step="any" min="0" data-key="D" data-q="length"></label>
+          <label data-show="square rect"><span id="cw-label">Width</span> <span class="u" data-unit="length"></span><input type="number" step="any" min="0" data-key="cw" data-q="length"></label>
+          <label data-show="rect">Depth <span class="u" data-unit="length"></span><input type="number" step="any" min="0" data-key="cd" data-q="length"></label>
+        </div>
+        <div class="grid2">
+          <label>Wall to heated face <span class="u" data-unit="length"></span><input type="number" step="any" min="0" data-key="wallHeated" data-q="length"></label>
+          <label>Wall roughness <span class="u" data-unit="roughness"></span><input type="number" step="any" min="0" data-key="roughness" data-q="roughness"></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend><span class="step">4</span>Coolant</legend>
+        <label>Fluid
+          <select data-key="fluid" id="fluid"></select>
+        </label>
+        <div class="grid2">
+          <label>Inlet temperature <span class="u" data-unit="temp"></span><input type="number" step="any" data-key="Tin" data-q="temp"></label>
+          <label>Inlet pressure <span class="u" data-unit="pressure"></span><input type="number" step="any" min="0" data-key="pIn" data-q="pressure"></label>
+        </div>
+        <div class="grid2">
+          <label>Flow given as
+            <select data-key="flowMode" id="flowMode">
+              <option value="vol">Volume flow</option>
+              <option value="mass">Mass flow</option>
+              <option value="std" data-gas-only>Standard flow</option>
+            </select>
+          </label>
+          <label>Flow rate <span class="u" id="flow-unit"></span><input type="number" step="any" min="0" data-key="flow" data-q="flow"></label>
+        </div>
+        <p class="hint" id="fluid-hint"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend><span class="step">5</span>Thermal requirement</legend>
+        <div class="seg seg-wide" role="radiogroup" aria-label="Calculation mode" id="mode">
+          <button type="button" role="radio" data-mode="capacity" aria-checked="true">Find max. heat</button>
+          <button type="button" role="radio" data-mode="load">Find surface temp.</button>
+        </div>
+        <div class="grid2">
+          <label data-show="capacity">Max. surface temp. <span class="u" data-unit="temp"></span><input type="number" step="any" data-key="TsMax" data-q="temp"></label>
+          <label data-show="load">Heat load <span class="u" data-unit="power"></span><input type="number" step="any" min="0" data-key="Q" data-q="power"></label>
+          <label>Heat applied over
+            <select data-key="heatArea">
+              <option value="full">Whole plate face</option>
+              <option value="channels">Channel area only</option>
+            </select>
+          </label>
+        </div>
+      </fieldset>
+    </form>
+
+    <!-- ================= RESULTS ================= -->
+    <section class="results" aria-live="polite">
+      <div class="card hero" id="hero">
+        <div class="hero-main">
+          <div class="hero-label" id="hero-label">Max. heat dissipation</div>
+          <div class="hero-value" id="hero-value">—</div>
+          <div class="hero-sub" id="hero-sub"></div>
+        </div>
+        <dl class="hero-side" id="hero-side"></dl>
+      </div>
+
+      <div class="card issues" id="issues" hidden></div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Plate layout</h2>
+          <div class="temp-legend" id="temp-legend"></div>
+        </div>
+        <div class="drawing" id="drawing"></div>
+        <div class="section-wrap">
+          <div class="section-title">Cross-section (detail)</div>
+          <div class="section" id="section"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Results</h2>
+        <div class="metrics" id="metrics"></div>
+      </div>
+
+      <div class="grid-cards">
+        <div class="card">
+          <h2>Thermal resistance breakdown</h2>
+          <p class="card-note">Peak surface → coolant inlet. The largest share is where to improve.</p>
+          <div id="rth-bar"></div>
+        </div>
+        <div class="card">
+          <h2>Pressure drop breakdown</h2>
+          <p class="card-note">Ports, headers and bends are estimates (fixed loss coefficients).</p>
+          <div id="dp-bar"></div>
+        </div>
+      </div>
+
+      <div class="grid-cards">
+        <div class="card">
+          <h2 id="chart1-title">Heat dissipation vs. flow</h2>
+          <div class="chart" id="chart1"></div>
+        </div>
+        <div class="card">
+          <h2>Pressure drop vs. flow</h2>
+          <div class="chart" id="chart2"></div>
+        </div>
+      </div>
+
+      <details class="card notes">
+        <summary>Method, assumptions &amp; limits</summary>
+        <div class="notes-body">
+          <p>This is a 1D thermal-resistance and pressure-drop model for concept sizing. Expect roughly ±20–30 % compared with CFD or test data. Validate final designs by simulation or measurement.</p>
+          <ul>
+            <li><b>Heat transfer.</b> Laminar flow uses Shah &amp; London fully developed Nu<sub>H1</sub> and f·Re for the channel aspect ratio, plus a Hausen-type thermal-entry correction per straight pass. Turbulent flow uses Gnielinski with a short-duct correction. Between Re 2300 and 4000 the two are blended linearly. Bends are assumed to restart the boundary layer, and Dean-vortex enhancement is ignored, which is conservative.</li>
+            <li><b>Plate conduction.</b> The walls between channels act as fins. Heat is conducted through the heated-face wall and spreads laterally between channels and at the plate edges. Lateral conduction along the plate blends the result between two limits. The <i>uniform heat flux</i> limit (hottest point at the outlet) is conservative. The <i>isothermal plate</i> limit (ε-NTU) is ideal.</li>
+            <li><b>Pressure drop.</b> Friction uses Shah's apparent friction factor (laminar, developing) and Haaland's (turbulent). 180° bends use the Darby 3-K method. Fixed loss coefficients cover channel entry and exit (0.5 + 1.0), headers (1.0 each, at header velocity) and ports (1.5 each, at port velocity).</li>
+            <li><b>Flow distribution.</b> Parallel layouts assume equal flow in every channel. A warning appears when the header velocity head is large compared with the channel pressure drop.</li>
+            <li><b>Fluids.</b> Properties are evaluated at the mean bulk temperature. Glycol data are for concentrations by volume and are approximate (±5–10 %). Gases are treated as ideal and incompressible within the plate, with properties at the inlet pressure.</li>
+            <li><b>Not modelled.</b> Contact and interface resistance (TIM), discrete heat sources and hot spots, radiation and natural convection, two-phase flow, turbulators and pin fins.</li>
+          </ul>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="js/units.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/physics.js"></script>
+  <script src="js/drawing.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
