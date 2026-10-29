@@ -159,6 +159,9 @@
 
     // Channel samples: fluid nodes, plate coverage and plate↔fluid links.
     const paths = channelPaths(s, g);
+    // Parallel layouts: each channel carries its own share of the flow (manifold model) and has its own h.
+    if (base.dist && paths.length === base.dist.frac.length) paths.forEach((p, i) => { p.share = base.dist.frac[i] / paths.length; });
+    const pathHT = paths.map((p) => (base.dist ? Physics.channelHT(s, g, ks, base.props, base.mdot * p.share) : { h: base.h, Peff: base.Peff }));
     const cov = new Float64Array(n);
     const nodes = []; // { path, cells: [k...], G }
     const step = Math.min(dx, dy) / 2;
@@ -176,7 +179,7 @@
         if (len <= 0) continue;
         const m = Math.max(1, Math.ceil(len / step));
         const ds = len / m, tx = (x1 - x0) / len, ty = (y1 - y0) / len;
-        const Gconv = base.h * base.Peff * ds;
+        const Gconv = pathHT[pi].h * pathHT[pi].Peff * ds;
         const Gwall = ks * g.a * ds / s.wallHeated;
         const G = 1 / (1 / Gconv + 1 / Gwall);
         for (let q = 0; q < m; q++) {

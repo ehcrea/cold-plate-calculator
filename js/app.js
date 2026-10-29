@@ -494,7 +494,7 @@
     renderHero(res);
     renderIssues(issues);
     if (res.geometry && !res.geometry.issues.some((i) => i.level === 'error')) {
-      lastView = Drawing.drawTop($('#drawing'), state, res);
+      lastView = Drawing.drawTop($('#drawing'), state, res, map);
       Drawing.drawSection($('#section'), state, res);
     } else {
       lastView = null;
@@ -504,6 +504,7 @@
     renderTempLegend(res);
     renderMap(res, map);
     renderSourcesTable(map);
+    renderDistribution(res);
     renderMetrics(res);
     renderBars(res);
     renderCharts(res);
@@ -629,6 +630,28 @@
     svg.addEventListener('pointerleave', () => { tip.hidden = true; });
   }
 
+  /** Short text summary of the manifold flow split (also used in the PDF). */
+  function distSummary(res) {
+    const d = res && res.dist;
+    if (!d) return '';
+    return `Lowest: channel ${d.minI + 1} at ${(100 * d.min).toFixed(0)} % of average · highest: channel ${d.maxI + 1} at ${(100 * d.max).toFixed(0)} % · spread (std. dev.) ±${(100 * d.cv).toFixed(1)} %`;
+  }
+
+  function renderDistribution(res) {
+    const card = $('#dist-card');
+    const d = res.ok && res.dist;
+    card.hidden = !d;
+    if (!d) return;
+    $('#dist-summary').textContent = distSummary(res);
+    const outs = lastMap ? lastMap.paths.map((p) => p.Tout) : null;
+    Charts.barChart($('#dist-chart'), {
+      values: d.frac.map((f) => 100 * f), ref: 100, refLabel: 'average',
+      xTitle: 'Channel', yTitle: 'Flow (% of average)', fmtY: (v) => Units.fmtNumber(v, 0),
+      tip: (i) => [`Channel ${i + 1}: ${(100 * d.frac[i]).toFixed(1)} %`,
+        `${fmt('volflow', d.q[i])}` + (outs ? ` · outlet ${fmt('temp', outs[i])}` : '')],
+    });
+  }
+
   /** Rows for the component table: shared with the PDF report. */
   function sourceRows(map) {
     return map.sources.map((r) => ({
@@ -693,7 +716,9 @@
     const th = thermal();
     const a = document.createElement('span'); a.textContent = 'Coolant ' + fmt('temp', res.Tin);
     const r = document.createElement('span'); r.className = 'ramp';
-    const b = document.createElement('span'); b.textContent = fmt('temp', th ? th.Tout : res.Tout);
+    // Parallel channels are coloured up to the hottest channel outlet.
+    const hottestOut = lastMap && res.dist ? Math.max(...lastMap.paths.map((p) => p.Tout)) : null;
+    const b = document.createElement('span'); b.textContent = fmt('temp', hottestOut || (th ? th.Tout : res.Tout)) + (hottestOut ? ' (hottest channel)' : '');
     lg.append(a, r, b);
   }
 
@@ -890,6 +915,7 @@
     result: () => lastResult,
     map: () => lastMap,
     op: () => lastOp,
+    distSummary,
     thermal, sourceRows,
     appName: () => currentApp,
     metricItems, fmtPower, shareUrl, toast,

@@ -54,7 +54,7 @@
     }
   }
 
-  function drawTop(container, s, res) {
+  function drawTop(container, s, res, map) {
     const avail = container.clientWidth || 760;
     container.textContent = '';
     const g = res.geometry;
@@ -130,14 +130,19 @@
     } else {
       const hw = s.header, p = g.pitch;
       const uA = m + hw, uB = g.run - m - hw;
+      // With the 2D result, each channel is coloured by its own outlet temperature (uneven flow shows up here).
+      const outs = map && res.dist && map.paths.length === g.count ? map.paths.map((pp) => pp.Tout) : null;
+      const hot = outs ? Math.max(...outs) : 0;
+      const frac = (T) => (outs && hot > s.Tin ? (T - s.Tin) / (hot - s.Tin) : 1);
       el('polygon', { points: pts([[m, m], [uA, m], [uA, span - m], [m, span - m]]), fill: colorAt(0), class: 'header-rect' }, svg);
-      el('polygon', { points: pts([[uB, m], [g.run - m, m], [g.run - m, span - m], [uB, span - m]]), fill: colorAt(1), class: 'header-rect' }, svg);
+      el('polygon', { points: pts([[uB, m], [g.run - m, m], [g.run - m, span - m], [uB, span - m]]), fill: colorAt(outs ? frac(map.Tout) : 1), class: 'header-rect' }, svg);
       const segs = 12;
       for (let i = 0; i < g.count; i++) {
         const v = m + (i + 0.5) * p;
+        const end = outs ? frac(outs[i]) : 1;
         for (let j = 0; j < segs; j++) {
           const a = uA + (uB - uA) * j / segs, b = uA + (uB - uA) * (j + 1) / segs;
-          el('polyline', { points: pts([[a, v], [b, v]]), stroke: colorAt((j + 0.5) / segs), 'stroke-width': sw, fill: 'none' }, svg);
+          el('polyline', { points: pts([[a, v], [b, v]]), stroke: colorAt(end * (j + 0.5) / segs), 'stroke-width': sw, fill: 'none' }, svg);
         }
       }
       const r = s.portD / 2;

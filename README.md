@@ -8,6 +8,7 @@ A browser-based tool for sizing liquid- and gas-cooled cold plates for **power e
 - A **2D plate temperature map** with hover readout and the hottest point marked
 - **Max. heat dissipation** at a given surface temperature limit, or **peak surface temperature** at a given heat load (uniform heating)
 - **Pump curve matching**: pick or enter a pump or blower curve and the rest-of-loop pressure drop. The calculator finds the operating point where pump pressure equals plate plus loop pressure drop, and plots the pump curve against the system curve
+- **Flow distribution** for parallel Z/U layouts: the flow in each channel from a manifold network model, shown as a bar chart and in the channel colours. Starved channels get less heat transfer and run hotter in the 2D map
 - Coolant outlet temperature, pressure drop and its breakdown, and hydraulic pump power
 - Thermal resistance breakdown (coolant capacity, convection, wall conduction, lateral spreading)
 - Reynolds number, flow regime, heat-transfer coefficient, fin efficiency and NTU
@@ -59,7 +60,8 @@ The tests check the correlations against textbook values, verify fluid propertie
 | Transition | Linear blend between Re 2300 and Re 4000 |
 | Bends | Darby 3-K for 180° returns |
 | Pump operating point | Bisection on volume flow until pump Δp(Q) = plate Δp(Q) + loop Δp·(Q/Q<sub>ref</sub>)². The pump curve is linear between points |
-| Other losses | Channel entry/exit K = 0.5 + 1.0; headers K = 1.0 each; ports K = 1.5 each |
+| Manifolds (parallel layouts) | Headers are split into segments between channel junctions, each with friction plus a momentum term: the inlet header regains 1.0× the drop in velocity head, and the outlet header loses 2.0× the rise. Each channel follows its own Δp(q) curve (developing friction + entry/exit). Flows are iterated until they sum to the total, and the result sets the header pressure drop and the heat transfer in each channel |
+| Other losses | Channel entry/exit K = 0.5 + 1.0; ports K = 1.5 each |
 | 2D plate model | Finite-difference grid over the plate face (up to about 6,000 cells, solved with preconditioned conjugate gradient). In-plane conduction uses the local solid thickness. Cells above channels, port leads and headers are coupled to the coolant through the heated-face wall and the fin-corrected convective film. The coolant is marched along each channel path, and plate and coolant are solved alternately to convergence |
 | Components | Case = average plate temperature under the footprint + P·t<sub>TIM</sub>/(k<sub>TIM</sub>·A). Junction = case + P·R<sub>jc</sub>. Headroom = the power scale factor at which the first component reaches its limit |
 | Plate conduction (1D) | Heated-face wall conduction, channel side walls as fins, lateral spreading between channels and at the edges |
@@ -68,7 +70,7 @@ The tests check the correlations against textbook values, verify fluid propertie
 
 The 1D model supplies the pressure drop, heat-transfer coefficient and resistance breakdown, plus a quick cross-check. The 2D model supplies the headline temperatures, the map and the component results.
 
-**Not modelled:** spreading through the plate thickness under very small sources, contact resistance beyond the TIM layer, flow maldistribution (warning only), two-phase flow, turbulators and pin fins, gas compressibility within the plate.
+**Not modelled:** spreading through the plate thickness under very small sources, contact resistance beyond the TIM layer, two-phase flow, turbulators and pin fins, gas compressibility within the plate.
 
 ## Project layout
 
@@ -89,6 +91,5 @@ tests/              Node sanity checks
 ## Roadmap
 
 - ~~v2: 2D temperature map, discrete heat sources, TIM layer~~ (done)
-- Flow distribution between parallel channels
 - Side-by-side design comparison, parameter sweeps, CSV export
 - Dielectric coolants and user-defined fluids; pin fins and turbulators

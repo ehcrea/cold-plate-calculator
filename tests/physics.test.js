@@ -146,6 +146,30 @@ check('pump too weak is reported, not solved', () => {
   assert.ok(op.ok ? op.q < 1e-5 : true);
 });
 
+console.log('Manifold flow distribution');
+const cu = (o) => P.solve(Object.assign({}, D.PRESETS.copper.state, o));
+check('channel flows add up to the total flow', () => {
+  const r = cu({ layout: 'parallelZ' });
+  near(r.dist.q.reduce((a, q) => a + q, 0), r.mdot / r.props.rho, 1e-6 * r.mdot / r.props.rho);
+});
+check('U-type splits flow more evenly than Z-type (same plate)', () => {
+  assert.ok(cu({ layout: 'parallelU' }).dist.cv < cu({ layout: 'parallelZ' }).dist.cv);
+});
+check('Z-type: far-end channel gets most flow; U-type: channel nearest the ports does', () => {
+  const z = cu({ layout: 'parallelZ' }).dist, u = cu({ layout: 'parallelU' }).dist;
+  assert.strictEqual(z.maxI, z.frac.length - 1);
+  assert.strictEqual(u.maxI, 0);
+});
+check('very large headers give a nearly uniform split', () => {
+  const r = cu({ layout: 'parallelZ', header: 0.03, headerDepth: 0.008, margin: 0.004 });
+  assert.ok(r.dist.min > 0.9 && r.dist.max < 1.1, `${r.dist.min} … ${r.dist.max}`);
+});
+check('starved channels run hotter in the 2D model', () => {
+  const { base, map } = P2.evaluate(Object.assign({}, D.PRESETS.copper.state, { layout: 'parallelZ' }));
+  const outs = map.paths.map((p) => p.Tout);
+  assert.ok(outs[base.dist.minI] > outs[base.dist.maxI]);
+});
+
 console.log('Units');
 check('1 gpm = 3.785 L/min', () => near(U.fromDisplay('volflow', 1, 'IMP') * 60e3, 3.78541, 1e-4));
 check('100 °C = 212 °F, round trip', () => { near(U.toDisplay('temp', 100, 'IMP'), 212, 1e-9); near(U.fromDisplay('temp', 212, 'IMP'), 100, 1e-9); });

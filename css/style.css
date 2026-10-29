@@ -305,6 +305,10 @@ svg .channel-cut { fill: var(--accent-soft); stroke: var(--accent); stroke-width
 
 /* Multi-series charts */
 .chart .line.s2 { stroke: var(--s2); }
+.chart .bar { fill: var(--s1); }
+.chart .ref-line { stroke: var(--text-2); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.dist-summary { margin: -4px 0 10px; font-size: 13px; color: var(--text-2); }
+.dist-summary b { color: var(--text); }
 .chart .line.s3 { stroke: var(--s3); stroke-dasharray: 5 4; }
 .chart .hover-dot.s2 { fill: var(--s2); }
 .chart .hover-dot.s3 { fill: var(--s3); }

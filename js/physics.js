@@ -187,6 +187,113 @@
 
   // ---------- Main solver ----------
 
+  /** Heat transfer in one channel carrying mass flow mch: h, fin efficiency and effective wetted perimeter. */
+  function channelHT(s, g, ks, pr, mch) {
+    const v = mch / (pr.rho * g.A);
+    const Re = Math.max(1e-6, pr.rho * v * g.Dh / pr.mu);
+    const Pr = pr.cp * pr.mu / pr.k;
+    const fl = channelFlow(s.shape, g.alpha, Re, Pr, g.Dh, Math.max(g.straight, g.Dh), s.roughness / g.Dh);
+    const h = fl.Nu * pr.k / g.Dh;
+    // Fin efficiency of the walls between channels (convective on both faces).
+    const mFin = Math.sqrt(2 * h / (ks * g.web));
+    const finH = s.shape === 'round' ? g.a / 2 : g.b;
+    const eta = mFin * finH > 1e-9 ? Math.tanh(mFin * finH) / (mFin * finH) : 1;
+    const Peff = s.shape === 'round'
+      ? Math.PI * g.a * (0.5 + 0.5 * eta)
+      : g.a + 2 * g.b * eta + g.a * eta * eta;
+    return { v, Re, Pr, fl, h, eta, Peff };
+  }
+
+  // Manifold momentum coefficients (fraction of the Bernoulli velocity-head change):
+  // dividing (inlet) header regains pressure as it slows, combining (outlet) header loses it.
+  const C_DIVIDING = 1.0, C_COMBINING = 2.0;
+
+  /**
+   * Flow split between the parallel channels of a Z- or U-type manifold.
+   * Headers are discretised between channel junctions with friction and
+   * momentum terms; each channel follows its own nonlinear Δp(q) curve
+   * (developing friction + entry/exit). Returns per-channel volume flows.
+   */
+  function flowDistribution(s, g, pr, mdot) {
+    const N = g.count, rho = pr.rho, mu = pr.mu;
+    const Q = mdot / rho;
+    const Pr = pr.cp * mu / pr.k;
+    const Lp = Math.max(g.straight, g.Dh);
+    const relR = s.roughness / g.Dh;
+
+    // Channel Δp(q) table, inverted by interpolation.
+    const chDp = (q) => {
+      if (q <= 0) return 0;
+      const v = q / g.A;
+      const fl = channelFlow(s.shape, g.alpha, Math.max(1e-6, rho * v * g.Dh / mu), Pr, g.Dh, Lp, relR);
+      return (fl.f * g.Lch / g.Dh + 1.5) * 0.5 * rho * v * v;
+    };
+    const tq = [0], tp = [0];
+    for (let i = 0; i <= 160; i++) { const q = Q * Math.pow(10, -4 + 4.3 * i / 160); tq.push(q); tp.push(chDp(q)); }
+    const qOf = (dp) => {
+      if (dp <= 0) return 0;
+      if (dp >= tp[tp.length - 1]) return tq[tq.length - 1] * Math.sqrt(dp / tp[tp.length - 1]);
+      let lo = 0, hi = tp.length - 1;
+      while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (tp[mid] < dp) lo = mid; else hi = mid; }
+      return tq[lo] + (tq[hi] - tq[lo]) * (dp - tp[lo]) / (tp[hi] - tp[lo]);
+    };
+
+    // Header geometry and friction.
+    const hd = s.headerDepth > 0 ? s.headerDepth : g.b;
+    const Ah = s.header * hd, Dhh = 2 * s.header * hd / (s.header + hd);
+    const aH = Math.min(s.header, hd) / Math.max(s.header, hd);
+    const segDp = (G) => {
+      if (G <= 0) return 0;
+      const V = G / Ah;
+      const f = channelFlow('rect', aH, Math.max(1e-6, rho * V * Dhh / mu), Pr, Dhh, 1e3 * Dhh, s.roughness / Dhh).f;
+      return f * (g.pitch / Dhh) * 0.5 * rho * V * V;
+    };
+    const vh = (G) => G / Ah;
+
+    let q = new Array(N).fill(Q / N);
+    const pin = new Array(N), pout = new Array(N);
+    let D = 0, pExit = 0, it = 0;
+    for (; it < 300; it++) {
+      // Inlet (dividing) header, flowing from channel 1 to N. Pressures relative to the inlet port.
+      let G = Q, p = 0;
+      for (let i = 0; i < N; i++) {
+        pin[i] = p;
+        const up = vh(G);
+        G -= q[i];
+        p += C_DIVIDING * 0.5 * rho * (up * up - vh(G) * vh(G));
+        if (i < N - 1) p -= segDp(G);
+      }
+      // Outlet (combining) header: Z exits after channel N, U after channel 1.
+      const order = s.layout === 'parallelU' ? [...Array(N).keys()].reverse() : [...Array(N).keys()];
+      G = 0; p = 0;
+      order.forEach((i, k) => {
+        pout[i] = p;
+        const up = vh(G);
+        G += q[i];
+        p -= C_COMBINING * 0.5 * rho * (vh(G) * vh(G) - up * up);
+        if (k < N - 1) p -= segDp(G);
+      });
+      pExit = p;
+      // Outlet level D so that the channel flows add up to Q: channel i sees pin[i] − pout[i] + D.
+      const sumQ = (d) => pin.reduce((a, pi, i) => a + qOf(pi - pout[i] + d), 0);
+      let lo = -Math.max(...pin.map((pi, i) => pi - pout[i])), hi = Math.max(1, -lo) + chDp(Q) * 2;
+      while (sumQ(hi) < Q) hi *= 2;
+      for (let k = 0; k < 50; k++) { const mid = 0.5 * (lo + hi); if (sumQ(mid) < Q) lo = mid; else hi = mid; }
+      D = 0.5 * (lo + hi);
+      const qNew = pin.map((pi, i) => qOf(pi - pout[i] + D));
+      let change = 0;
+      for (let i = 0; i < N; i++) { change = Math.max(change, Math.abs(qNew[i] - q[i])); q[i] = 0.5 * q[i] + 0.5 * qNew[i]; }
+      if (change < 1e-5 * Q / N) break;
+    }
+    const dpCh = pin.map((pi, i) => pi - pout[i] + D);
+    const frac = q.map((qi) => qi * N / Q);
+    const dpChannels = q.reduce((a, qi, i) => a + qi * dpCh[i], 0) / Q; // flow-weighted
+    const dpNetwork = D - pExit; // inlet port to outlet port (positive)
+    const minI = frac.indexOf(Math.min(...frac)), maxI = frac.indexOf(Math.max(...frac));
+    const mean = 1, sd = Math.sqrt(frac.reduce((a, f) => a + (f - mean) ** 2, 0) / N);
+    return { q, frac, dpCh, dpChannels, dpNetwork, minI, maxI, min: frac[minI], max: frac[maxI], cv: sd, iterations: it, vHeaderMax: vh(Q) };
+  }
+
   const SI_UNITS = { velocity: 'm/s', temp: '°C', dtemp: 'K', dpressure: 'kPa' };
   function defaultFmt(q, v) {
     if (q === 'dpressure') return (v / 1e3).toFixed(1) + ' kPa';
@@ -222,19 +329,7 @@
       const pr = fluidProps(s.fluid, Tm, s.pIn);
       const C = mdot * pr.cp;
       const mch = mdot / g.nPar;
-      const v = mch / (pr.rho * g.A);
-      const Re = pr.rho * v * g.Dh / pr.mu;
-      const Pr = pr.cp * pr.mu / pr.k;
-      const fl = channelFlow(s.shape, g.alpha, Re, Pr, g.Dh, Lp, relRough);
-      const h = fl.Nu * pr.k / g.Dh;
-
-      // Fin efficiency of the walls between channels (convective on both faces).
-      const mFin = Math.sqrt(2 * h / (ks * g.web));
-      const finH = s.shape === 'round' ? g.a / 2 : g.b;
-      const eta = mFin * finH > 1e-9 ? Math.tanh(mFin * finH) / (mFin * finH) : 1;
-      const Peff = s.shape === 'round'
-        ? Math.PI * g.a * (0.5 + 0.5 * eta)
-        : g.a + 2 * g.b * eta + g.a * eta * eta;
+      const { v, Re, Pr, fl, h, eta, Peff } = channelHT(s, g, ks, pr, mch);
       const Aeff = g.nPar * Peff * g.Lch;
 
       const Rconv = 1 / (h * Aeff);
@@ -277,12 +372,18 @@
     const Aport = Math.PI * s.portD ** 2 / 4;
     const vPort = mdot / (pr.rho * Aport);
     const dpPorts = 2 * 1.5 * 0.5 * pr.rho * vPort * vPort; // 90° turn + expansion, each port
-    let dpHeaders = 0, vHeader = 0;
+    let dpHeaders = 0, vHeader = 0, dist = null;
+    let dpFr = dpFriction, dpEE = dpEntryExit;
     if (!serp) {
       vHeader = mdot / (pr.rho * g.headerArea);
-      dpHeaders = 2 * 1.0 * 0.5 * pr.rho * vHeader * vHeader;
+      // Manifold network: actual flow split, header losses and channel pressure drop.
+      dist = flowDistribution(s, g, pr, mdot);
+      const share = dpFriction / (dpFriction + dpEntryExit);
+      dpFr = dist.dpChannels * share;
+      dpEE = dist.dpChannels * (1 - share);
+      dpHeaders = Math.max(0, dist.dpNetwork - dist.dpChannels);
     }
-    const dp = dpFriction + dpBends + dpEntryExit + dpPorts + dpHeaders;
+    const dp = (serp ? dpFriction + dpEntryExit : Math.max(dist.dpNetwork, dist.dpChannels)) + dpBends + dpPorts;
     const volFlow = mdot / pr.rho;
     const pumpPower = dp * volFlow;
 
@@ -312,11 +413,10 @@
         if (s.material === 'ti2') add('warn', 'Titanium absorbs hydrogen and can embrittle — not recommended in H₂ service.');
       }
     }
-    if (!serp) {
-      // Manifold uniformity: header velocity head should be small vs. the channel pressure drop.
-      const headRatio = 0.5 * pr.rho * vHeader * vHeader / (dpFriction + dpEntryExit);
-      r.headRatio = headRatio;
-      if (headRatio > 0.25) add('warn', `Header velocity head is ${(100 * headRatio).toFixed(0)} % of the channel pressure drop — expect flow maldistribution between channels (${s.layout === 'parallelZ' ? 'Z-type is most sensitive' : 'U-type'}). Widen the headers, or increase channel resistance.`);
+    if (dist) {
+      const lowCh = dist.minI + 1;
+      if (dist.min < 0.8) add('warn', `Uneven flow split: channel ${lowCh} gets only ${(100 * dist.min).toFixed(0)} % of the average flow (max ${(100 * dist.max).toFixed(0)} %). Widen or deepen the headers, ${s.layout === 'parallelZ' ? 'try a U-type layout, ' : ''}or make the channels more restrictive.`);
+      else if (dist.min < 0.9) add('info', `Channel flows range from ${(100 * dist.min).toFixed(0)} % to ${(100 * dist.max).toFixed(0)} % of the average.`);
     }
     if (pr.outOfRange) add('warn', `Fluid temperature outside property data range (${F('temp', pr.range[0])} … ${F('temp', pr.range[1])}) — properties extrapolated as constant.`);
     if (dp > 100e3) add('warn', `Pressure drop is ${F('dpressure', dp)} (above 1 bar) — check pump capability and plate pressure rating.`);
@@ -332,11 +432,11 @@
       mdot, volFlow, propsIn, props: pr,
       v, vPort, vHeader, Re, Pr: r.Pr, regime: fl.regime, f: fl.f, Nu: fl.Nu, h: r.h, eta: r.eta,
       Aeff: r.Aeff, Peff: r.Peff, NTU: r.NTU, eps: r.eps, lateralWeight: r.w,
-      headRatio: r.headRatio, Q: r.Q, TsMax: r.TsMax, Tin: s.Tin, Tout: r.Tout, Rth: r.Rtot, Tboil: r.Tboil, Mach: r.Mach,
+      Q: r.Q, TsMax: r.TsMax, Tin: s.Tin, Tout: r.Tout, Rth: r.Rtot, Tboil: r.Tboil, Mach: r.Mach,
       flux: r.Q / g.heatArea, spread,
       resistances: { capacity: r.Rcap, convection: r.Rtot - r.Rcap - r.Rwall - r.Rspread, wall: r.Rwall, spreading: r.Rspread },
       bounds: { uniformFlux: r.Ruf, isothermal: r.Riso },
-      dp, dpParts: { friction: dpFriction, bends: dpBends, entryExit: dpEntryExit, headers: dpHeaders, ports: dpPorts },
+      dp, dpParts: { friction: dpFr, bends: dpBends, entryExit: dpEE, headers: dpHeaders, ports: dpPorts }, dist,
       pumpPower, plateMass, fluidVol: g.fluidVol, ks,
     };
   }
@@ -402,7 +502,7 @@
       for (let i = 0; i < 60; i++) {
         const mid = 0.5 * (lo + hi), fm = f(mid);
         if (fm > 0) lo = mid; else hi = mid;
-        if (hi - lo < qMax * 1e-7) break;
+        if (hi - lo < qMax * 1e-5) break;
       }
     }
     const q = fhi > 0 ? qMax : 0.5 * (lo + hi);
@@ -419,7 +519,7 @@
   }
 
   const Physics = { solve, sweep, fluidProps, geometry, waterTsat, laminarFD, laminarFApp, laminarNu, turbulentF, turbulentNu, channelFlow, bendK,
-    pumpDp, pumpMaxFlow, loopDp, systemDp, operatingPoint, effectiveState };
+    channelHT, flowDistribution, pumpDp, pumpMaxFlow, loopDp, systemDp, operatingPoint, effectiveState };
   if (typeof module !== 'undefined' && module.exports) module.exports = Physics;
   else root.Physics = Physics;
 })(typeof window !== 'undefined' ? window : globalThis);

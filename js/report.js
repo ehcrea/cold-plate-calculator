@@ -77,8 +77,8 @@
       // The thermal curve is computed in the background; wait for it to finish drawing.
       for (let i = 0; i < 100 && !document.querySelector('#chart1 svg') && App.thermal(); i++) await new Promise((r) => setTimeout(r, 50));
       const grab = (sel) => { const s = document.querySelector(sel + ' svg'); return s ? svgToPng(s) : Promise.resolve(null); };
-      const [top, section, map, chart1, chart2] = await Promise.all([grab('#drawing'), grab('#section'), grab('#map'), grab('#chart1'), grab('#chart2')]);
-      return { top, section, map, chart1, chart2 };
+      const [top, section, map, chart1, chart2, dist] = await Promise.all([grab('#drawing'), grab('#section'), grab('#map'), grab('#chart1'), grab('#chart2'), grab('#dist-chart')]);
+      return { top, section, map, chart1, chart2, dist };
     } finally {
       if (prev === null) html.removeAttribute('data-theme'); else html.setAttribute('data-theme', prev);
       App.rerender();
@@ -302,7 +302,10 @@
     const topH = w.image(figs.top, contentW, 80);
     w.y += topH + 1;
     w.font(7.5, 'normal', INK3);
-    w.text(`Channels coloured by coolant temperature: ${Units.format('temp', s.Tin)} (inlet) to ${Units.format('temp', th.Tout)} (outlet).`, PAGE.m, w.y + 3);
+    const hotOut = res.dist && map ? Math.max(...map.paths.map((p) => p.Tout)) : null;
+    w.text(hotOut
+      ? `Channels coloured by coolant temperature: ${Units.format('temp', s.Tin)} (inlet) to ${Units.format('temp', hotOut)} (hottest channel outlet).`
+      : `Channels coloured by coolant temperature: ${Units.format('temp', s.Tin)} (inlet) to ${Units.format('temp', th.Tout)} (outlet).`, PAGE.m, w.y + 3);
     w.y += 6;
     const secH = w.image(figs.section, contentW, 28);
     w.y += secH + 2;
@@ -409,6 +412,20 @@
     ], (v) => Units.format('dpressure', v, { digits: 2 }), PAGE.m + colW + 8, colW);
     w.y = Math.max(yA, yB) + 4;
 
+    // Flow distribution (parallel layouts)
+    if (res.dist && figs.dist) {
+      w.ensure(70);
+      w.heading('Flow distribution between channels');
+      w.font(8, 'normal', INK2);
+      w.text(App.distSummary(res), PAGE.m, w.y + 2);
+      w.y += 4;
+      const dh = w.image(figs.dist, contentW * 0.75, 52, PAGE.m + contentW * 0.125);
+      w.y += dh + 2;
+      w.font(7.5, 'normal', INK3);
+      w.text('Channel 1 is nearest the inlet port. Dashed line = average flow.', PAGE.m, w.y + 2);
+      w.y += 5;
+    }
+
     // Charts
     w.ensure(75);
     w.heading('Performance vs. flow rate');
@@ -432,7 +449,8 @@
       'This is an engineering estimate for concept sizing: a 2D plate conduction model coupled to 1D channel hydraulics. Expect roughly ±15-30 % compared with CFD or test data.',
       'Laminar flow: Shah & London Nu(H1) and f·Re for the channel aspect ratio with entry corrections. Turbulent flow: Gnielinski with Haaland friction. Re 2300-4000 is blended.',
       '2D plate model: finite-difference grid over the plate face with in-plane conduction through the local solid thickness. Cells above channels and headers are coupled to the coolant through the heated-face wall and convective film (fin-corrected), and the coolant is marched along each channel path. Components add a TIM layer (t/(k*A)) and junction-to-case resistance.',
-      'Not modelled: through-thickness spreading under small sources, contact resistance beyond the TIM layer, flow maldistribution (warning only), two-phase flow, gas compressibility within the plate.',
+      'Parallel layouts: the flow split between channels comes from a manifold network model (header friction and momentum against the pressure drop of each channel), and the flow in each channel sets its own heat transfer in the 2D model.',
+      'Not modelled: through-thickness spreading under small sources, contact resistance beyond the TIM layer, two-phase flow, gas compressibility within the plate.',
     ];
     w.font(8, 'normal', INK2);
     for (const para of method) {

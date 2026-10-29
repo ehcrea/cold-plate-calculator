@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cold Plate Calculator</title>
   <meta name="description" content="Estimate heat dissipation, coolant temperature rise and pressure drop of liquid- and gas-cooled cold plates for power electronics, batteries and fuel cells.">
-  <link rel="stylesheet" href="css/style.css?v=11">
+  <link rel="stylesheet" href="css/style.css?v=14">
 </head>
 <body>
   <header class="topbar">
@@ -223,6 +223,13 @@
         <div class="table-wrap" id="sources-table"></div>
       </div>
 
+      <div class="card" id="dist-card" hidden>
+        <h2>Flow distribution between channels</h2>
+        <p class="dist-summary" id="dist-summary"></p>
+        <div class="chart" id="dist-chart"></div>
+        <p class="card-note map-note">Channel 1 is nearest the inlet port. Manifold model: header friction and momentum (pressure regain in the inlet header, extra loss in the outlet header) against each channel's own pressure drop.</p>
+      </div>
+
       <div class="card">
         <h2>Results</h2>
         <div class="metrics" id="metrics"></div>
@@ -263,7 +270,7 @@
             <li><b>1D model.</b> Used for the pressure drop, heat-transfer coefficient and resistance breakdown, and as a quick cross-check.</li>
             <li><b>Plate conduction (1D).</b> The walls between channels act as fins. Heat is conducted through the heated-face wall and spreads laterally between channels and at the plate edges. Lateral conduction along the plate blends the result between two limits. The <i>uniform heat flux</i> limit (hottest point at the outlet) is conservative. The <i>isothermal plate</i> limit (ε-NTU) is ideal.</li>
             <li><b>Pressure drop.</b> Friction uses Shah's apparent friction factor (laminar, developing) and Haaland's (turbulent). 180° bends use the Darby 3-K method. Fixed loss coefficients cover channel entry and exit (0.5 + 1.0), headers (1.0 each, at header velocity) and ports (1.5 each, at port velocity).</li>
-            <li><b>Flow distribution.</b> Parallel layouts assume equal flow in every channel. A warning appears when the header velocity head is large compared with the channel pressure drop.</li>
+            <li><b>Flow distribution.</b> For parallel layouts, the inlet and outlet headers are split into segments between channel junctions. Each segment has friction plus a momentum term: the inlet header regains 1.0× the drop in velocity head, and the outlet header loses 2.0× the rise. Each channel follows its own pressure-drop curve (developing friction plus entry/exit losses). The solver iterates until the channel flows add up to the total. The per-channel flows set each channel's heat-transfer coefficient and coolant temperature rise in the 2D model, and the header losses in the pressure drop.</li>
             <li><b>Fluids.</b> Properties are evaluated at the mean bulk temperature. Glycol data are for concentrations by volume and are approximate (±5–10 %). Gases are treated as ideal and incompressible within the plate, with properties at the inlet pressure.</li>
             <li><b>Not modelled.</b> Contact and interface resistance (TIM), discrete heat sources and hot spots, radiation and natural convection, two-phase flow, turbulators and pin fins.</li>
           </ul>
@@ -274,13 +281,13 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script src="js/units.js?v=11"></script>
-  <script src="js/data.js?v=11"></script>
-  <script src="js/physics.js?v=11"></script>
-  <script src="js/physics2d.js?v=11"></script>
-  <script src="js/drawing.js?v=11"></script>
-  <script src="js/charts.js?v=11"></script>
-  <script src="js/report.js?v=11"></script>
-  <script src="js/app.js?v=11"></script>
+  <script src="js/units.js?v=14"></script>
+  <script src="js/data.js?v=14"></script>
+  <script src="js/physics.js?v=14"></script>
+  <script src="js/physics2d.js?v=14"></script>
+  <script src="js/drawing.js?v=14"></script>
+  <script src="js/charts.js?v=14"></script>
+  <script src="js/report.js?v=14"></script>
+  <script src="js/app.js?v=14"></script>
 </body>
 </html>

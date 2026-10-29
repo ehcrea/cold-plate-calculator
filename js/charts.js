@@ -152,5 +152,65 @@
     hit.addEventListener('pointerleave', hide);
   }
 
-  root.Charts = { lineChart };
+  /**
+   * Vertical bars with a dashed reference line and per-bar tooltips.
+   * @param o { values: [number], ref, refLabel, yTitle, xTitle, fmtY(v), tip(i) → [strong, sub] }
+   */
+  function barChart(container, o) {
+    const W = Math.max(260, container.clientWidth || 420), H = 220;
+    container.textContent = '';
+    const m = { l: 48, r: 14, t: 14, b: 38 };
+    const iw = W - m.l - m.r, ih = H - m.t - m.b;
+    const n = o.values.length;
+    const yTicks = niceTicks(Math.max(...o.values, o.ref * 1.15));
+    const yMax = yTicks[yTicks.length - 1];
+    const sy = (y) => m.t + ih - (y / yMax) * ih;
+    const slot = iw / n, bw = Math.max(1, Math.min(28, slot - 2));
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${o.yTitle} for each of ${n} channels` }, container);
+    const ax = el('g', { class: 'axis' }, svg);
+    yTicks.forEach((t) => {
+      el('line', { x1: m.l, x2: m.l + iw, y1: sy(t), y2: sy(t), class: t === 0 ? 'baseline' : 'gridline' }, ax);
+      const tx = el('text', { x: m.l - 6, y: sy(t) + 4, 'text-anchor': 'end' }, ax);
+      tx.textContent = o.fmtY(t);
+    });
+    const step = Math.ceil(n / Math.max(1, Math.floor(iw / 28)));
+    for (let i = 0; i < n; i += step) {
+      const tx = el('text', { x: m.l + slot * (i + 0.5), y: m.t + ih + 16, 'text-anchor': 'middle' }, ax);
+      tx.textContent = String(i + 1);
+    }
+    const xt = el('text', { x: m.l + iw / 2, y: H - 4, 'text-anchor': 'middle', class: 'axis-title' }, svg);
+    xt.textContent = o.xTitle;
+    const yt = el('text', { x: 12, y: m.t + ih / 2, 'text-anchor': 'middle', class: 'axis-title', transform: `rotate(-90 12 ${m.t + ih / 2})` }, svg);
+    yt.textContent = o.yTitle;
+
+    const tip = document.createElement('div');
+    tip.className = 'tooltip';
+    tip.hidden = true;
+    container.appendChild(tip);
+    o.values.forEach((v, i) => {
+      const x = m.l + slot * (i + 0.5) - bw / 2, y = sy(v), y0 = sy(0), r = Math.min(4, bw / 2, y0 - y);
+      // Rounded data end, square at the baseline.
+      el('path', { d: `M${x},${y0}V${y + r}Q${x},${y} ${x + r},${y}H${x + bw - r}Q${x + bw},${y} ${x + bw},${y + r}V${y0}Z`, class: 'bar' }, svg);
+      const hit = el('rect', { x: m.l + slot * i, y: m.t, width: slot, height: ih, fill: 'transparent' }, svg);
+      hit.addEventListener('pointermove', () => {
+        const [strong, sub] = o.tip(i);
+        tip.textContent = '';
+        const b = document.createElement('b'); b.textContent = strong;
+        const s = document.createElement('div'); s.className = 'muted'; s.textContent = sub;
+        tip.append(b, s);
+        tip.hidden = false;
+        const rr = svg.getBoundingClientRect(), sc = rr.width / W;
+        let left = (x + bw + 8) * sc;
+        if (left + tip.offsetWidth > rr.width) left = (x - 8) * sc - tip.offsetWidth;
+        tip.style.left = left + 'px';
+        tip.style.top = Math.max(0, y * sc - tip.offsetHeight - 6) + 'px';
+      });
+      hit.addEventListener('pointerleave', () => { tip.hidden = true; });
+    });
+    el('line', { x1: m.l, x2: m.l + iw, y1: sy(o.ref), y2: sy(o.ref), class: 'ref-line' }, svg);
+    const rl = el('text', { x: m.l + 4, y: sy(o.ref) - 5, 'text-anchor': 'start', class: 'op-label' }, svg);
+    rl.textContent = o.refLabel;
+  }
+
+  root.Charts = { lineChart, barChart };
 })(window);
