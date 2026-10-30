@@ -280,6 +280,41 @@ check('invalid variants are reported, not thrown', () => {
   assert.strictEqual(m.ok, false);
 });
 check('CSV quoting', () => assert.strictEqual(ST.toCsv([['a,b', 'c"d', 1.5]]), '"a,b","c""d",1.5'));
+const solveOpt = (s, key, target, dpMax) => {
+  const o = ST.SOLVE_FOR.find((x) => x.key === key);
+  return ST.solveTarget(s, { key, dir: o.dir, log: o.log, int: o.int, range: o.range(ST.paramValue(s, key)), target, dpMax: dpMax || null });
+};
+check('minimum flow meets the component margin, and 1 % less flow does not', () => {
+  const s = D.PRESETS.inverter.state;
+  const r = solveOpt(s, 'flow', { type: 'margin', value: 5 });
+  assert.strictEqual(r.status, 'ok'); assert.strictEqual(r.limitedBy, 'thermal');
+  assert.ok(r.sol.m.margin >= 5 && r.sol.m.margin < 6, `margin ${r.sol.m.margin}`);
+  const less = ST.metrics(ST.evaluateDesign(ST.applyParam(s, 'flow', r.sol.x * 0.99)));
+  assert.ok(less.margin < 5 + 0.3);
+});
+check('highest inlet temperature for a peak surface limit (uniform heat)', () => {
+  const s = Object.assign({}, D.PRESETS.battery.state, { heatArea: 'full', mode: 'load', Q: 400 });
+  const r = solveOpt(s, 'Tin', { type: 'tmax', value: 45 });
+  assert.strictEqual(r.status, 'ok');
+  near(r.sol.m.Tpeak, 45, 0.3, 'peak at the solution');
+});
+check('fewest channels: integer answer, one fewer misses the target', () => {
+  const s = D.PRESETS.inverter.state;
+  const r = solveOpt(s, 'count', { type: 'margin', value: 20 });
+  assert.strictEqual(r.status, 'ok'); assert.strictEqual(r.sol.x, Math.round(r.sol.x));
+  const fewer = ST.metrics(ST.evaluateDesign(ST.applyParam(s, 'count', r.sol.x - 1)));
+  assert.ok(!fewer.ok || fewer.margin < 20);
+});
+check('capacity target: minimum flow to dissipate a heat load at the surface limit', () => {
+  const s = Object.assign({}, D.PRESETS.fuelcell.state, { heatArea: 'full', mode: 'capacity' });
+  const base = ST.metrics(ST.evaluateDesign(s));
+  const r = solveOpt(s, 'flow', { type: 'q', value: base.Q * 0.8 });
+  assert.strictEqual(r.status, 'ok'); assert.ok(r.sol.x < s.flow && r.sol.m.Q >= base.Q * 0.8);
+});
+check('a pressure-drop limit that conflicts with the thermal target is reported', () => {
+  const r = solveOpt(D.PRESETS.inverter.state, 'flow', { type: 'margin', value: 5 }, 100);
+  assert.strictEqual(r.status, 'none'); assert.strictEqual(r.thermalReachable, true);
+});
 
 console.log('Translations');
 const I18N = require('../js/i18n.js');
@@ -312,6 +347,11 @@ check('every literal t(...) key and solver message template is translated', () =
   for (const m of phys.matchAll(/(?:\bM|add)\('(?:error|warn|info)', (?:[^']*\? )?'([^']+)'(?: : '([^']+)')?/g)) { need(m[1]); need(m[2]); }
   for (const m of phys.matchAll(/msg: '([^']+)'/g)) need(m[1]);
   for (const k of stepKeys) need(k);
+  for (const o of ST.SOLVE_FOR) {
+    if (typeof o.label === 'string') need(o.label);
+    else { need(o.label({ layout: 'serpentine' })); need(o.label({ layout: 'parallelZ' })); }
+  }
+  for (const k of ['Margin below each component limit', 'Max. peak surface temperature', 'Heat to dissipate']) need(k);
   for (const par of ST.PARAMS) {
     if (typeof par.label === 'string') need(par.label);
     else { need(par.label({ layout: 'serpentine' })); need(par.label({ layout: 'parallelZ' })); }

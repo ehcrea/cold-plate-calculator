@@ -293,7 +293,7 @@ svg .channel-cut { fill: var(--accent-soft); stroke: var(--accent); stroke-width
   .card, fieldset { box-shadow: none; break-inside: avoid; }
   .notes { display: block; }
   .steps:not([open]) { display: none; }
-  #sweep-card .sweep-controls, #compare-card .card-actions, .cmp-actions, table.sweep td:last-child, table.sweep th:last-child { display: none; }
+  #size-card, #sweep-card .sweep-controls, #compare-card .card-actions, .cmp-actions, table.sweep td:last-child, table.sweep th:last-child { display: none; }
   .calc-step { break-inside: avoid; }
   .notes[open] summary ~ *, .notes summary ~ * { display: block; }
 }
@@ -389,4 +389,23 @@ table.compare td.best { color: var(--ok); font-weight: 700; }
 @media (max-width: 700px) {
   .sweep-controls { grid-template-columns: 1fr 1fr; }
   .sweep-controls label:first-child, .sweep-controls .btn { grid-column: 1 / -1; }
+}
+
+/* Inverse sizing */
+.size-controls { display: grid; grid-template-columns: minmax(150px, 1.3fr) minmax(120px, 1fr) minmax(150px, 1.3fr) auto; gap: 10px; align-items: end; }
+.size-controls .btn { height: 34px; white-space: nowrap; }
+#size-hint:empty { display: none; }
+.size-row { display: grid; grid-template-columns: minmax(180px, 1fr) 2fr; gap: 16px; align-items: start; margin-top: 10px; }
+.size-answer .k { font-size: 12px; color: var(--text-3); }
+.size-answer .v { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; color: var(--accent); }
+.size-answer .s { font-size: 12px; color: var(--text-3); }
+.size-metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px 14px; margin: 0; }
+.size-metrics dt { font-size: 11px; color: var(--text-3); }
+.size-metrics dd { margin: 0; font-weight: 600; }
+.size-warn { margin: 10px 0 0; padding-left: 18px; color: var(--warn); font-size: 12px; }
+#size-result .btn-primary { margin-top: 12px; }
+#size-card.stale #size-result { opacity: .5; }
+#size-card.stale .sweep-status { color: var(--warn); }
+@media (max-width: 700px) {
+  .size-controls, .size-row { grid-template-columns: 1fr; }
 }

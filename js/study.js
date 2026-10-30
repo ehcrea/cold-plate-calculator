@@ -104,6 +104,87 @@
     return m;
   }
 
+  // ---------- Inverse sizing ----------
+
+  /** What the target solver can size, and in which direction is "better". */
+  const SOLVE_FOR = [
+    { key: 'flow', label: 'Minimum flow rate', dir: 'min', log: true, range: (v) => [v / 10, v * 10], when: (s) => s.flowSource !== 'pump' },
+    { key: 'count', label: (s) => (serp(s) ? 'Fewest passes' : 'Fewest channels'), dir: 'min', int: true, range: (v) => [1, Math.max(4, Math.round(v * 3))] },
+    { key: 't', label: 'Thinnest plate', dir: 'min', range: (v) => [v * 0.3, v * 2] },
+    { key: 'Tin', label: 'Highest inlet temperature', dir: 'max', range: (v) => [v - 40, v + 60] },
+  ];
+  const solveFor = (s) => SOLVE_FOR.filter((o) => !o.when || o.when(s));
+
+  /** Kind of thermal target for a state: margin below component limits, peak surface or heat. */
+  const targetType = (s) => (s.heatArea === 'sources' ? 'margin' : s.mode === 'capacity' ? 'q' : 'tmax');
+
+  function meets(m, target) {
+    if (!m.ok) return false;
+    if (target.type === 'margin') return m.margin >= target.value;
+    if (target.type === 'tmax') return m.Tpeak <= target.value;
+    return m.Q >= target.value;
+  }
+  // Higher is better: used to report the closest miss.
+  const score = (m, type) => (!m.ok ? -Infinity : type === 'margin' ? m.margin : type === 'tmax' ? -m.Tpeak : m.Q);
+
+  /**
+   * Find the smallest (dir 'min') or largest (dir 'max') value of one input that meets the thermal
+   * target and, optionally, a pressure-drop limit. Coarse scan from the "cheap" end of the range,
+   * then bisection, all with the full 2D model. Generator: yields progress, returns the result.
+   * opt: { key, dir, range: [lo, hi], log, int, target: { type, value }, dpMax (Pa) | null }
+   */
+  function* solveSteps(s, opt) {
+    const [lo, hi] = opt.range;
+    const N = 12;
+    let xs = [];
+    for (let i = 0; i < N; i++) {
+      const f = i / (N - 1);
+      xs.push(opt.log ? lo * Math.pow(hi / lo, f) : lo + (hi - lo) * f);
+    }
+    if (opt.int) xs = [...new Set(xs.map((x) => Math.max(1, Math.round(x))))];
+    const order = opt.dir === 'min' ? xs : xs.slice().reverse();
+    let evals = 0;
+    const at = (x) => {
+      evals++;
+      const d = evaluateDesign(applyParam(s, opt.key, x));
+      const m = metrics(d);
+      const th = meets(m, opt.target), dp = !opt.dpMax || (m.ok && m.dp <= opt.dpMax);
+      return { x, d, m, th, ok: th && dp };
+    };
+
+    const scan = [];
+    let found = -1;
+    for (let k = 0; k < order.length; k++) {
+      const r = at(order[k]);
+      scan.push(r);
+      yield { evals, total: order.length + 8 };
+      if (r.ok) { found = k; break; }
+    }
+    const best = scan.reduce((b, r) => (score(r.m, opt.target.type) > score(b.m, opt.target.type) ? r : b), scan[0]);
+    if (found < 0) return { status: 'none', thermalReachable: scan.some((r) => r.th), best, evals, range: [lo, hi] };
+    if (found === 0) return { status: 'bound', sol: scan[0], evals, range: [lo, hi] };
+
+    // Bisection between the last miss (a) and the first hit (b).
+    let a = scan[found - 1], b = scan[found];
+    for (let it = 0; it < 14; it++) {
+      if (opt.int ? Math.abs(b.x - a.x) <= 1 : Math.abs(b.x - a.x) <= 0.004 * Math.max(Math.abs(b.x), 1e-12) + (opt.key === 'Tin' ? 0.05 : 0)) break;
+      let mid = opt.log ? Math.sqrt(a.x * b.x) : (a.x + b.x) / 2;
+      if (opt.int) mid = Math.round(mid);
+      const r = at(mid);
+      if (r.ok) b = r; else a = r;
+      yield { evals, total: evals + 3 };
+    }
+    // What sets the answer: the nearest miss was invalid geometry, the thermal target or the pressure drop.
+    const limitedBy = !a.m.ok ? 'geometry' : !a.th ? 'thermal' : 'dp';
+    return { status: 'ok', sol: b, limitedBy, evals, range: [lo, hi] };
+  }
+
+  /** Run the solver to completion (Node and tests). */
+  function solveTarget(s, opt) {
+    const g = solveSteps(s, opt);
+    for (;;) { const r = g.next(); if (r.done) return r.value; }
+  }
+
   /** CSV text: values containing separators or quotes are quoted. */
   function toCsv(rows) {
     const cell = (v) => {
@@ -113,7 +194,8 @@
     return rows.map((r) => r.map(cell).join(',')).join('\r\n');
   }
 
-  const Study = { PARAMS, paramsFor, paramLabel, paramValue, applyParam, sweepValues, evaluateDesign, metrics, toCsv };
+  const Study = { PARAMS, paramsFor, paramLabel, paramValue, applyParam, sweepValues, evaluateDesign, metrics, toCsv,
+    SOLVE_FOR, solveFor, targetType, meets, solveSteps, solveTarget };
 
   if (isNode) { module.exports = Study; return; }
 
@@ -509,8 +591,163 @@
       download(`cold-plate-sweep-${sweep.key}-${stamp()}.csv`, toCsv(rows));
     }
 
+    // ===== Inverse sizing =====
+
+    const tg = { margin: 5, tmax: null, q: null, dpMax: null }; // SI
+    let sizeVar = null, sized = null, sizeToken = 0, sizeUnits = null;
+    const TARGET = {
+      margin: { label: 'Margin below each component limit', q: 'dtemp' },
+      tmax: { label: 'Max. peak surface temperature', q: 'temp' },
+      q: { label: 'Heat to dissipate', q: 'power' },
+    };
+
+    function renderSizeControls() {
+      const cur = ctx.current(), s = cur.state;
+      const type = targetType(s);
+      if (tg.tmax === null) tg.tmax = s.TsMax > s.Tin ? s.TsMax : s.Tin + 40;
+      if (tg.q === null) {
+        const m = cur.res && cur.res.ok ? metrics({ s: cur.s, res: cur.res, map: cur.map }) : null;
+        tg.q = m && m.ok && m.Q > 0 ? Math.round(m.Q * 1.2 / 10) * 10 : 1000;
+      }
+      const sel = $('size-var');
+      const opts = solveFor(s);
+      if (!opts.some((o) => o.key === sizeVar)) sizeVar = opts[0].key;
+      sel.textContent = '';
+      opts.forEach((o) => sel.appendChild(new Option(t(typeof o.label === 'function' ? o.label(s) : o.label), o.key)));
+      sel.value = sizeVar;
+      $('size-target-label').textContent = t(TARGET[type].label);
+      $('size-target-unit').textContent = `(${U.label(TARGET[type].q)})`;
+      $('size-dp-unit').textContent = `(${U.label('dpressure')})`;
+      $('size-hint').textContent = type === 'q' ? t('At a peak surface temperature of {T}.', { T: fmt('temp', s.TsMax) })
+        : s.flowSource === 'pump' ? t('The flow is set by the pump curve; switch to a fixed flow rate to size the flow.') : '';
+      const key = U.system + type;
+      if (sizeUnits !== key) {
+        const v = tg[type];
+        $('size-target').value = +U.toDisplay(TARGET[type].q, v).toPrecision(4);
+        $('size-dp').value = tg.dpMax ? +U.toDisplay('dpressure', tg.dpMax).toPrecision(4) : '';
+        sizeUnits = key;
+      }
+    }
+
+    function readSize() {
+      const s = ctx.current().state, type = targetType(s);
+      const v = parseFloat($('size-target').value);
+      const dpRaw = $('size-dp').value.trim(), dp = dpRaw === '' ? null : parseFloat(dpRaw);
+      const okT = isFinite(v) && (type === 'tmax' || v >= 0 || type === 'margin'), okDp = dp === null || (isFinite(dp) && dp > 0);
+      $('size-target').classList.toggle('bad', !okT);
+      $('size-dp').classList.toggle('bad', !okDp);
+      if (!okT || !okDp) return null;
+      tg[type] = U.fromDisplay(TARGET[type].q, v);
+      tg.dpMax = dp === null ? null : U.fromDisplay('dpressure', dp);
+      return { type, value: tg[type] };
+    }
+
+    function runSize() {
+      const target = readSize();
+      if (!target) return;
+      const s = clone(ctx.current().state);
+      const o = SOLVE_FOR.find((x) => x.key === sizeVar);
+      const range = o.range(paramValue(s, o.key));
+      const gen = solveSteps(s, { key: o.key, dir: o.dir, log: o.log, int: o.int, range, target, dpMax: tg.dpMax });
+      const my = ++sizeToken;
+      $('size-run').disabled = true;
+      $('size-result').textContent = '';
+      const step = () => {
+        if (my !== sizeToken) return;
+        const t0 = performance.now();
+        let r;
+        do { r = gen.next(); } while (!r.done && performance.now() - t0 < 40);
+        if (!r.done) {
+          $('size-status').textContent = t('Searching… {n} calculations', { n: r.value.evals });
+          setTimeout(step, 0);
+          return;
+        }
+        $('size-run').disabled = false;
+        sized = { res: r.value, opt: o, target, dpMax: tg.dpMax, base: JSON.stringify(s), state: s };
+        renderSize();
+      };
+      $('size-status').textContent = t('Searching…');
+      setTimeout(step, 0);
+    }
+
+    function renderSize() {
+      const box = $('size-result'), status = $('size-status');
+      if (!sized) { status.textContent = ''; box.textContent = ''; return; }
+      const { res, opt, target, state: s } = sized;
+      const p = paramOf(opt.key);
+      const isStale = JSON.stringify(ctx.current().state) !== sized.base;
+      $('size-card').classList.toggle('stale', isStale);
+      const range = `${fmtParam(p, s, res.range[0])} – ${fmtParam(p, s, res.range[1])}`;
+      const label = t(typeof opt.label === 'function' ? opt.label(s) : opt.label);
+      box.textContent = '';
+      let msg = '';
+      if (res.status === 'none') {
+        const best = res.best;
+        msg = res.thermalReachable
+          ? t('The thermal target and the pressure-drop limit cannot both be met in the range {range}. Relax one of them or change the design.', { range })
+          : best && best.m.ok
+            ? t('The target cannot be reached in the range {range}. Closest: {value} at {x}.', { range, x: fmtParam(p, s, best.x), value: describeTarget(best.m, target.type) })
+            : t('The target cannot be reached in the range {range}.', { range });
+      } else if (res.status === 'bound') {
+        msg = opt.dir === 'min' ? t('The target is already met at the low end of the search range ({x}).', { x: fmtParam(p, s, res.range[0]) })
+          : t('The target is still met at the high end of the search range ({x}).', { x: fmtParam(p, s, res.range[1]) });
+      } else {
+        msg = { geometry: t('Limited by geometry: going further gives an invalid design.'), thermal: t('Limited by the thermal target.'), dp: t('Limited by the pressure-drop limit.') }[res.limitedBy];
+      }
+      status.textContent = isStale ? t('Inputs have changed since this search — run it again to update.') : msg;
+      if (!res.sol) return;
+
+      const sol = res.sol, m = sol.m;
+      const head = el('div', 'size-answer');
+      head.appendChild(el('div', 'k', label));
+      head.appendChild(el('div', 'v', fmtParam(p, s, sol.x)));
+      head.appendChild(el('div', 's', t('current design: {x}', { x: fmtParam(p, ctx.current().state, paramValue(ctx.current().state, opt.key)) })));
+      const dl = el('dl', 'size-metrics');
+      const add = (k, v) => { const d = el('div'); d.append(el('dt', '', k), el('dd', '', v)); dl.appendChild(d); };
+      if (m.kind === 'tj') { add(t('Hottest junction'), fmt('temp', m.Tj)); add(t('Margin to limit'), fmt('dtemp', m.margin)); }
+      if (m.kind === 'q') add(t('Total heat'), ctx.fmtPower(m.Q));
+      add(t('Peak plate surface'), fmt('temp', m.Tpeak));
+      add(t('Coolant outlet'), fmt('temp', m.Tout));
+      add(t('Volume flow (mean)'), fmt('volflow', m.flow));
+      add(t('Pressure drop'), fmt('dpressure', m.dp));
+      add(t('Channel velocity'), fmt('velocity', m.v));
+      const row = el('div', 'size-row');
+      row.append(head, dl);
+      box.appendChild(row);
+      const warns = (sol.d.res.issues || []).filter((i) => i.level !== 'info');
+      if (warns.length) {
+        const ul = el('ul', 'size-warn');
+        warns.slice(0, 3).forEach((i) => ul.appendChild(el('li', '', i.tpl ? t(i.tpl, i.params) : i.msg)));
+        box.appendChild(ul);
+      }
+      if (!isStale) {
+        const apply = el('button', 'btn btn-primary', t('Apply to design'));
+        apply.type = 'button';
+        apply.addEventListener('click', () => {
+          const n = applyParam(ctx.current().state, opt.key, sol.x);
+          sized.base = JSON.stringify(n);
+          ctx.load(n);
+          ctx.toast(t('Applied: {label} = {x}', { label, x: fmtParam(p, n, sol.x) }));
+        });
+        box.appendChild(apply);
+      }
+    }
+
+    /** Value of the target quantity, e.g. "margin 3.2 K". */
+    function describeTarget(m, type) {
+      if (type === 'margin') return t('margin {v}', { v: fmt('dtemp', m.margin) });
+      if (type === 'tmax') return t('peak {T}', { T: fmt('temp', m.Tpeak) });
+      return ctx.fmtPower(m.Q);
+    }
+
     // ===== Wiring =====
 
+    $('size-var').addEventListener('change', (e) => { sizeVar = e.target.value; });
+    $('size-run').addEventListener('click', runSize);
+    for (const id of ['size-target', 'size-dp']) {
+      $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); runSize(); } });
+      $(id).addEventListener('change', readSize);
+    }
     $('compare-add').addEventListener('click', addSnapshot);
     $('compare-csv').addEventListener('click', compareCsv);
     $('sweep-param').addEventListener('change', (e) => { sw.key = e.target.value; sw.from = null; lastSystem = null; renderSweepControls(); });
@@ -522,6 +759,8 @@
     }
 
     function render() {
+      renderSizeControls();
+      renderSize();
       renderCompare();
       renderSweepControls();
       renderSweep();
