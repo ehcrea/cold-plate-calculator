@@ -87,11 +87,11 @@ check('uniform copper plate: 2D capacity within 15 % of 1D', () => {
   const { base, map } = P2.evaluate(s);
   assert.ok(Math.abs(map.Qtotal / base.Q - 1) < 0.15, `1D ${base.Q.toFixed(0)} W vs 2D ${map.Qtotal.toFixed(0)} W`);
 });
-check('source: junction > case > plate, TIM drop = P·t/(k·A)', () => {
+check('source: junction > case > plate, TIM drop = P·(t/k + Rc)/A', () => {
   const { map } = P2.evaluate(D.PRESETS.inverter.state);
   const src = D.PRESETS.inverter.state.sources[0], r = map.sources[0];
   assert.ok(r.Tj > r.Tcase && r.Tcase > r.Tplate);
-  near(r.Tcase - r.Tplate, src.P * src.tim / (src.kTim * src.w * src.h), 1e-9);
+  near(r.Tcase - r.Tplate, src.P * (src.tim / src.kTim + src.rcTim) / (src.w * src.h), 1e-9);
   near(r.Tj - r.Tcase, src.P * src.rjc, 1e-9);
 });
 check('headroom scales the hottest junction exactly to its limit', () => {
@@ -168,6 +168,42 @@ check('starved channels run hotter in the 2D model', () => {
   const { base, map } = P2.evaluate(Object.assign({}, D.PRESETS.copper.state, { layout: 'parallelZ' }));
   const outs = map.paths.map((p) => p.Tout);
   assert.ok(outs[base.dist.minI] > outs[base.dist.maxI]);
+});
+
+console.log('Fluids and TIMs');
+check('every fluid solves and has physical properties at 20 °C', () => {
+  for (const id of Object.keys(D.FLUIDS)) {
+    const s = Object.assign({}, D.PRESETS.inverter.state, { fluid: id, heatArea: 'full' });
+    if (D.FLUIDS[id].phase === 'gas') Object.assign(s, { flowMode: 'mass', flow: 0.003, pIn: 3e5 });
+    const r = P.solve(s);
+    assert.ok(r.ok, `${id}: ${r.issues.map((i) => i.msg).join('; ')}`);
+    const p = P.fluidProps(id, 20, 3e5);
+    assert.ok(p.rho > 0 && p.cp > 0 && p.k > 0 && p.mu > 0, id);
+  }
+});
+check('helium and CO₂ densities at 20 °C, 1 atm', () => {
+  near(P.fluidProps('he', 20, 101325).rho, 0.1664, 0.002);
+  near(P.fluidProps('co2', 20, 101325).rho, 1.83, 0.02);
+});
+check('water outperforms dielectric fluids at the same flow', () => {
+  const q = (f) => P.solve(Object.assign({}, D.PRESETS.inverter.state, { fluid: f, heatArea: 'full' })).Q;
+  assert.ok(q('water') > q('hfe') && q('water') > q('pao'));
+});
+check('custom liquid uses the entered properties', () => {
+  const cf = { rho: 900, cp: 2000, k: 0.2, mu: 0.01, freeze: -50, boil: 200 };
+  const r = P.solve(Object.assign({}, D.PRESETS.inverter.state, { fluid: 'custom', customFluid: cf, heatArea: 'full' }));
+  near(r.props.rho, 900, 1e-9); near(r.props.cp, 2000, 1e-9); near(r.props.mu, 0.01, 1e-12); near(r.Tboil, 200, 1e-9);
+});
+check('TIM library: thick gap pad has far more resistance than solder', () => {
+  const z = (t) => t.t / t.k + t.rc;
+  assert.ok(z(D.TIMS.gappad) > 20 * z(D.TIMS.solder));
+});
+check('a thicker TIM raises the junction temperature by the extra P·t/(k·A)', () => {
+  const s = D.PRESETS.inverter.state;
+  const thick = Object.assign({}, s, { sources: s.sources.map((x) => Object.assign({}, x, { tim: x.tim + 1e-4 })) });
+  const a = P2.evaluate(s).map.sources[0], b = P2.evaluate(thick).map.sources[0];
+  const src = s.sources[0];
+  near(b.Tcase - b.Tplate - (a.Tcase - a.Tplate), src.P * 1e-4 / (src.kTim * src.w * src.h), 1e-9);
 });
 
 console.log('Units');

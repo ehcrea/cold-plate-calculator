@@ -117,7 +117,8 @@
         ['Wall roughness', Units.format('roughness', s.roughness)],
       ]],
       ['Coolant', [
-        ['Fluid', FLUIDS[s.fluid].name],
+        ['Fluid', FLUIDS[s.fluid].name.replace('…', '')],
+        ...(s.fluid === 'custom' ? [['Custom properties', `rho ${F('density', s.customFluid.rho)}, cp ${F('cp', s.customFluid.cp)}, k ${F('conductivity', s.customFluid.k)}, mu ${F('viscosity', s.customFluid.mu)}`]] : []),
         ['Inlet temperature', F('temp', s.Tin)],
         ['Inlet pressure', F('pressure', s.pIn)],
         ...flowRows(s, flowQ),
@@ -325,24 +326,57 @@
     if (th.src && map.sources.length) {
       w.ensure(20 + 6 * map.sources.length);
       w.heading('Component temperatures');
-      const cols = [['Component', 0, 'left'], ['Power', 52, 'right'], ['Plate avg / max', 88, 'right'], ['Case', 108, 'right'], ['Junction', 128, 'right'], ['Limit', 145, 'right'], ['Margin', 162, 'right'], ['Status', 180, 'right']];
+      const cols = [['Component', 0, 'left'], ['Power', 46, 'right'], ['Plate avg / max', 80, 'right'], ['TIM dT', 97, 'right'], ['Case', 114, 'right'], ['Junction', 133, 'right'], ['Limit', 149, 'right'], ['Margin', 165, 'right'], ['Status', 180, 'right']];
       w.font(7.5, 'normal', INK3);
       cols.forEach(([t, x, al]) => w.text(t, PAGE.m + x, w.y + 3, { align: al }));
       w.y += 4.5;
       w.rule();
       for (const r of App.sourceRows(map)) {
         w.ensure(6);
-        const vals = [r.name, r.P, r.plate, r.tcase, r.tj, r.limit, r.margin, r.ok ? 'OK' : 'OVER LIMIT'];
+        const vals = [r.name, r.P, r.plate, r.dtim, r.tcase, r.tj, r.limit, r.margin, r.ok ? 'OK' : 'OVER'];
         vals.forEach((v, i) => {
           const [, x, al] = cols[i];
-          if (i === 7) w.font(8, 'bold', r.ok ? [0, 131, 0] : LEVEL_COLORS.error);
-          else w.font(8, i === 4 ? 'bold' : 'normal', INK);
+          if (i === 8) w.font(8, 'bold', r.ok ? [0, 131, 0] : LEVEL_COLORS.error);
+          else w.font(8, i === 5 ? 'bold' : 'normal', INK);
           w.text(v, PAGE.m + x, w.y + 4, { align: al });
         });
         w.y += 5.5;
         w.rule();
       }
       w.y += 3;
+
+      // Source definitions: footprint, position and interface stack.
+      w.ensure(16 + 6 * s.sources.length);
+      w.heading('Heat source definitions');
+      const dcols = [['Component', 0, 'left'], ['Footprint (L x W)', 56, 'right'], ['Centre (x, y)', 84, 'right'], ['TIM', 88, 'left'], ['Impedance', 165, 'right'], ['Rjc', 180, 'right']];
+      w.font(7.5, 'normal', INK3);
+      dcols.forEach(([t, x, al]) => w.text(t, PAGE.m + x, w.y + 3, { align: al }));
+      w.y += 4.5;
+      w.rule();
+      for (const src of s.sources) {
+        w.ensure(6);
+        const tim = CPData.TIMS[src.timType] || CPData.TIMS.custom;
+        const vals = [
+          src.name,
+          `${Units.format('length', src.w)} x ${Units.format('length', src.h)}`,
+          `${Units.format('length', src.x, { noUnit: true })}, ${Units.format('length', src.y)}`,
+          `${tim.name.replace('…', '').replace(/\s*\(.*\)/, '')}, ${Units.format('length', src.tim)}, k ${Units.format('conductivity', src.kTim)}`,
+          Units.format('impedance', App.timOf(src).z, { digits: 3 }),
+          Units.format('rth', src.rjc || 0, { digits: 3 }),
+        ];
+        vals.forEach((v, i) => {
+          const [, x, al] = dcols[i];
+          w.font(i === 3 ? 7 : 8, 'normal', INK);
+          let t = clean(v);
+          if (i === 3) while (t.length > 4 && pdf.getTextWidth(t) > 52) t = t.slice(0, -4) + '...';
+          w.text(t, PAGE.m + x, w.y + 4, { align: al });
+        });
+        w.y += 5.5;
+        w.rule();
+      }
+      w.font(7.5, 'normal', INK3);
+      w.text('Impedance = TIM thickness / conductivity + contact resistance (both faces).', PAGE.m, w.y + 3);
+      w.y += 6;
     }
 
     // Warnings
@@ -448,7 +482,7 @@
     const method = [
       'This is an engineering estimate for concept sizing: a 2D plate conduction model coupled to 1D channel hydraulics. Expect roughly ±15-30 % compared with CFD or test data.',
       'Laminar flow: Shah & London Nu(H1) and f·Re for the channel aspect ratio with entry corrections. Turbulent flow: Gnielinski with Haaland friction. Re 2300-4000 is blended.',
-      '2D plate model: finite-difference grid over the plate face with in-plane conduction through the local solid thickness. Cells above channels and headers are coupled to the coolant through the heated-face wall and convective film (fin-corrected), and the coolant is marched along each channel path. Components add a TIM layer (t/(k*A)) and junction-to-case resistance.',
+      '2D plate model: finite-difference grid over the plate face with in-plane conduction through the local solid thickness. Cells above channels and headers are coupled to the coolant through the heated-face wall and convective film (fin-corrected), and the coolant is marched along each channel path. Components add a TIM layer ((t/k + contact resistance)/A) and junction-to-case resistance.',
       'Parallel layouts: the flow split between channels comes from a manifold network model (header friction and momentum against the pressure drop of each channel), and the flow in each channel sets its own heat transfer in the 2D model.',
       'Not modelled: through-thickness spreading under small sources, contact resistance beyond the TIM layer, two-phase flow, gas compressibility within the plate.',
     ];

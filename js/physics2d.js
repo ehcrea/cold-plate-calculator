@@ -308,10 +308,11 @@
       }
       const area = src.w * src.h;
       const Tplate = sumA > 0 ? sumT / sumA : NaN;
-      const Rtim = src.tim > 0 && src.kTim > 0 ? src.tim / (src.kTim * area) : 0;
+      // TIM: bulk conduction t/k plus contact resistance at both faces, per unit area.
+      const Rtim = ((src.tim > 0 && src.kTim > 0 ? src.tim / src.kTim : 0) + (src.rcTim || 0)) / area;
       const Tcase = Tplate + src.P * Rtim;
       const Tj = Tcase + src.P * (src.rjc || 0);
-      return { name: src.name, P: src.P, Tplate, TplateMax: tmax, Rtim, Tcase, Tj, limit: src.Tlimit, margin: src.Tlimit - Tj, onPlate: coverage[si] };
+      return { name: src.name, P: src.P, Tplate, TplateMax: tmax, Rtim, dTtim: src.P * Rtim, Tcase, Tj, limit: src.Tlimit, margin: src.Tlimit - Tj, onPlate: coverage[si] };
     });
 
     // Linear in heat (properties fixed): factor by which all sources can be scaled before the first hits its limit.

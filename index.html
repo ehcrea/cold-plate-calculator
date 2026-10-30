@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cold Plate Calculator</title>
   <meta name="description" content="Estimate heat dissipation, coolant temperature rise and pressure drop of liquid- and gas-cooled cold plates for power electronics, batteries and fuel cells.">
-  <link rel="stylesheet" href="css/style.css?v=14">
+  <link rel="stylesheet" href="css/style.css?v=17">
 </head>
 <body>
   <header class="topbar">
@@ -116,6 +116,14 @@
         <label>Fluid
           <select data-key="fluid" id="fluid"></select>
         </label>
+        <div class="grid3" data-show="customfluid">
+          <label>Density <span class="u" data-unit="density"></span><input type="number" step="any" min="0" data-cf="rho" data-q="density"></label>
+          <label>Specific heat <span class="u" data-unit="cp"></span><input type="number" step="any" min="0" data-cf="cp" data-q="cp"></label>
+          <label>Conductivity <span class="u" data-unit="conductivity"></span><input type="number" step="any" min="0" data-cf="k" data-q="conductivity"></label>
+          <label>Viscosity <span class="u" data-unit="viscosity"></span><input type="number" step="any" min="0" data-cf="mu" data-q="viscosity"></label>
+          <label>Freezing point <span class="u" data-unit="temp"></span><input type="number" step="any" data-cf="freeze" data-q="temp"></label>
+          <label>Boiling point <span class="u" data-unit="temp"></span><input type="number" step="any" data-cf="boil" data-q="temp"></label>
+        </div>
         <div class="grid2">
           <label>Inlet temperature <span class="u" data-unit="temp"></span><input type="number" step="any" data-key="Tin" data-q="temp"></label>
           <label>Inlet pressure <span class="u" data-unit="pressure"></span><input type="number" step="any" min="0" data-key="pIn" data-q="pressure"></label>
@@ -176,7 +184,7 @@
 
       <fieldset data-show="sources">
         <legend><span class="step">6</span>Heat sources</legend>
-        <p class="hint">Position is the centre of each component, from the plate's top-left corner. You can also drag components on the plate layout.</p>
+        <p class="hint">x, y = centre of each component, measured from the plate's top-left corner (or drag it on the plate layout). The TIM is the layer between component and plate: thickness, conductivity k, and contact resistance for both faces.</p>
         <div id="sources-list"></div>
         <button type="button" class="btn" id="add-source">+ Add heat source</button>
         <p class="hint" id="sources-total"></p>
@@ -219,7 +227,7 @@
 
       <div class="card" id="sources-card" hidden>
         <h2>Component temperatures</h2>
-        <p class="card-note">Plate = average plate surface under the footprint. Case = plate + TIM drop. Junction = case + P·R<sub>jc</sub>.</p>
+        <p class="card-note">Plate = average plate surface under the footprint. TIM ΔT = P × (t/k + contact resistance) / area. Case = plate + TIM ΔT. Junction = case + P·R<sub>jc</sub>.</p>
         <div class="table-wrap" id="sources-table"></div>
       </div>
 
@@ -265,7 +273,7 @@
           <p>This is a 1D thermal-resistance and pressure-drop model for concept sizing. Expect roughly ±20–30 % compared with CFD or test data. Validate final designs by simulation or measurement.</p>
           <ul>
             <li><b>Heat transfer.</b> Laminar flow uses Shah &amp; London fully developed Nu<sub>H1</sub> and f·Re for the channel aspect ratio, plus a Hausen-type thermal-entry correction per straight pass. Turbulent flow uses Gnielinski with a short-duct correction. Between Re 2300 and 4000 the two are blended linearly. Bends are assumed to restart the boundary layer, and Dean-vortex enhancement is ignored, which is conservative.</li>
-            <li><b>2D plate model.</b> The plate face is divided into a grid of up to about 6,000 cells. Heat conducts in-plane through the local solid thickness. Cells above channels and headers are coupled to the coolant through the heated-face wall and the convective film. The coolant is marched along each channel path, and the plate and coolant are solved alternately until they agree. This model gives the map, the peak temperature and the component temperatures. Each component adds a TIM layer (t/(k·A)) and its junction-to-case resistance. Spreading through the plate thickness under small components is not modelled, so very small, intense sources read slightly optimistic.</li>
+            <li><b>2D plate model.</b> The plate face is divided into a grid of up to about 6,000 cells. Heat conducts in-plane through the local solid thickness. Cells above channels and headers are coupled to the coolant through the heated-face wall and the convective film. The coolant is marched along each channel path, and the plate and coolant are solved alternately until they agree. This model gives the map, the peak temperature and the component temperatures. Each component adds a TIM layer, (t/k + contact resistance)/A, picked from a library or entered directly, and its junction-to-case resistance. Spreading through the plate thickness under small components is not modelled, so very small, intense sources read slightly optimistic.</li>
             <li><b>Pump curve.</b> With a pump curve, the flow is found by bisection where the pump pressure rise equals the plate pressure drop plus the rest-of-loop drop. The loop drop scales with flow². The pump curve is interpolated linearly between your points, and all results use the operating-point flow.</li>
             <li><b>1D model.</b> Used for the pressure drop, heat-transfer coefficient and resistance breakdown, and as a quick cross-check.</li>
             <li><b>Plate conduction (1D).</b> The walls between channels act as fins. Heat is conducted through the heated-face wall and spreads laterally between channels and at the plate edges. Lateral conduction along the plate blends the result between two limits. The <i>uniform heat flux</i> limit (hottest point at the outlet) is conservative. The <i>isothermal plate</i> limit (ε-NTU) is ideal.</li>
@@ -281,13 +289,13 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script src="js/units.js?v=14"></script>
-  <script src="js/data.js?v=14"></script>
-  <script src="js/physics.js?v=14"></script>
-  <script src="js/physics2d.js?v=14"></script>
-  <script src="js/drawing.js?v=14"></script>
-  <script src="js/charts.js?v=14"></script>
-  <script src="js/report.js?v=14"></script>
-  <script src="js/app.js?v=14"></script>
+  <script src="js/units.js?v=17"></script>
+  <script src="js/data.js?v=17"></script>
+  <script src="js/physics.js?v=17"></script>
+  <script src="js/physics2d.js?v=17"></script>
+  <script src="js/drawing.js?v=17"></script>
+  <script src="js/charts.js?v=17"></script>
+  <script src="js/report.js?v=17"></script>
+  <script src="js/app.js?v=17"></script>
 </body>
 </html>

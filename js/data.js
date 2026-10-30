@@ -57,6 +57,60 @@
     },
   };
 
+  // Non-aqueous liquids: fixed boiling point at 1 atm (boil), pour/freeze point (freeze).
+  // Dielectric fluids are safe in direct contact with electronics.
+  Object.assign(LIQUIDS, {
+    pao: {
+      name: 'PAO (polyalphaolefin, avionics coolant)', short: 'PAO', phase: 'liquid', freeze: -60, boil: 250, dielectric: true,
+      rows: [
+        [-40, 830, 1960, 0.146, 207], [-20, 816, 2045, 0.144, 41], [0, 802, 2130, 0.142, 12.2], [20, 788, 2210, 0.140, 5.5],
+        [40, 774, 2295, 0.138, 3.3], [60, 760, 2380, 0.137, 2.2], [80, 746, 2465, 0.135, 1.57], [100, 732, 2550, 0.134, 1.24],
+      ],
+    },
+    mineraloil: {
+      name: 'Mineral oil (transformer oil)', short: 'Mineral oil', phase: 'liquid', freeze: -40, boil: 280, dielectric: true,
+      rows: [
+        [-20, 906, 1720, 0.134, 140], [0, 893, 1790, 0.133, 40], [20, 880, 1860, 0.131, 18], [40, 867, 1930, 0.130, 9],
+        [60, 854, 2000, 0.128, 5.2], [80, 841, 2070, 0.127, 3.4], [100, 828, 2140, 0.125, 2.4],
+      ],
+    },
+    silicone: {
+      name: 'Silicone oil (PDMS, 5 cSt)', short: 'Silicone oil', phase: 'liquid', freeze: -60, boil: 200, dielectric: true,
+      rows: [
+        [-40, 975, 1520, 0.128, 17.5], [0, 940, 1570, 0.124, 7.0], [25, 915, 1600, 0.121, 4.6], [50, 892, 1630, 0.118, 3.2],
+        [100, 846, 1690, 0.112, 1.8],
+      ],
+    },
+    pfpe: {
+      name: 'PFPE dielectric fluid (bp ≈135 °C)', short: 'PFPE', phase: 'liquid', freeze: -100, boil: 135, dielectric: true,
+      rows: [
+        [-40, 1886, 900, 0.070, 8.5], [0, 1790, 940, 0.067, 3.2], [25, 1730, 966, 0.065, 1.73], [50, 1670, 990, 0.063, 1.15],
+        [100, 1550, 1040, 0.059, 0.62],
+      ],
+    },
+    hfe: {
+      name: 'HFE dielectric fluid (bp ≈128 °C)', short: 'HFE', phase: 'liquid', freeze: -100, boil: 128, dielectric: true,
+      rows: [
+        [-40, 1780, 1020, 0.073, 5.2], [0, 1676, 1090, 0.068, 2.0], [25, 1614, 1128, 0.065, 1.24], [50, 1552, 1165, 0.062, 0.85],
+        [100, 1430, 1240, 0.057, 0.50],
+      ],
+    },
+    custom: {
+      name: 'Custom liquid…', short: 'Custom liquid', phase: 'liquid', freeze: -50, boil: 100, custom: true,
+      rows: [[-100, 1000, 4000, 0.6, 1], [400, 1000, 4000, 0.6, 1]],
+    },
+  });
+
+  /** Constant-property custom liquid; cf = { rho, cp, k, mu (Pa·s), freeze, boil }. */
+  function setCustomFluid(cf) {
+    if (!cf) return;
+    const f = LIQUIDS.custom;
+    f.rows = [[-100, cf.rho, cf.cp, cf.k, cf.mu * 1e3], [400, cf.rho, cf.cp, cf.k, cf.mu * 1e3]];
+    f.freeze = cf.freeze;
+    f.boil = cf.boil;
+  }
+  const DEFAULT_CUSTOM_FLUID = { rho: 1000, cp: 3500, k: 0.4, mu: 0.003, freeze: -40, boil: 110 };
+
   // Gases: molar mass kg/mol, cp table [T K, cp J/kg·K], Sutherland (mu0 @ T0, S),
   // conductivity k = k0 (T/273.15)^n, ratio of specific heats gamma.
   const GASES = {
@@ -77,7 +131,35 @@
     },
   };
 
+  Object.assign(GASES, {
+    he: {
+      name: 'Helium (He)', short: 'He', phase: 'gas', M: 0.0040026, gamma: 1.66,
+      cp: [[200, 5193], [500, 5193]],
+      mu0: 1.87e-5, S: 79.4, k0: 0.1434, kn: 0.71,
+    },
+    co2: {
+      name: 'Carbon dioxide (CO₂)', short: 'CO₂', phase: 'gas', M: 0.04401, gamma: 1.29,
+      cp: [[200, 735], [250, 791], [300, 846], [350, 895], [400, 939], [450, 978], [500, 1014]],
+      mu0: 1.37e-5, S: 222, k0: 0.01465, kn: 1.33,
+    },
+  });
+
   const FLUIDS = Object.assign({}, LIQUIDS, GASES);
+
+  // Thermal interface materials. k [W/m·K], typical bond-line thickness t [m],
+  // contact resistance rc [m²·K/W] for both faces together. Typical datasheet-level values.
+  const TIMS = {
+    grease: { name: 'Thermal grease (standard)', k: 1.0, t: 50e-6, rc: 5e-6 },
+    greaseHP: { name: 'Thermal grease (high performance)', k: 4.0, t: 30e-6, rc: 3e-6 },
+    pcm: { name: 'Phase-change material', k: 3.0, t: 25e-6, rc: 4e-6 },
+    graphite: { name: 'Graphite sheet', k: 8.0, t: 130e-6, rc: 10e-6 },
+    adhesive: { name: 'Thermal adhesive / epoxy', k: 1.5, t: 100e-6, rc: 5e-6 },
+    insulator: { name: 'Electrically insulating pad', k: 1.0, t: 230e-6, rc: 15e-6 },
+    gappad: { name: 'Gap pad (soft, 1 mm)', k: 3.0, t: 1.0e-3, rc: 20e-6 },
+    gapfiller: { name: 'Gap filler (dispensed, 1.5 mm)', k: 3.5, t: 1.5e-3, rc: 10e-6 },
+    solder: { name: 'Solder (e.g. SAC / indium)', k: 50, t: 75e-6, rc: 1e-6 },
+    custom: { name: 'Custom…', k: 3, t: 100e-6, rc: 0 },
+  };
 
   // Plate materials: k W/m·K, rho kg/m³, max recommended coolant velocity m/s (erosion guide).
   const MATERIALS = {
@@ -107,9 +189,9 @@
         flowMode: 'vol', flow: 8 * L_PER_MIN,
         mode: 'capacity', TsMax: 75, Q: 2000, heatArea: 'sources',
         sources: [
-          { name: 'Phase U', P: 600, x: 0.065, y: 0.1, w: 0.05, h: 0.09, tim: 0.0001, kTim: 3, rjc: 0.06, Tlimit: 150 },
-          { name: 'Phase V', P: 600, x: 0.15, y: 0.1, w: 0.05, h: 0.09, tim: 0.0001, kTim: 3, rjc: 0.06, Tlimit: 150 },
-          { name: 'Phase W', P: 600, x: 0.235, y: 0.1, w: 0.05, h: 0.09, tim: 0.0001, kTim: 3, rjc: 0.06, Tlimit: 150 },
+          { name: 'Phase U', P: 600, x: 0.065, y: 0.1, w: 0.05, h: 0.09, timType: 'grease', tim: 50e-6, kTim: 1.0, rcTim: 5e-6, rjc: 0.06, Tlimit: 150 },
+          { name: 'Phase V', P: 600, x: 0.15, y: 0.1, w: 0.05, h: 0.09, timType: 'grease', tim: 50e-6, kTim: 1.0, rcTim: 5e-6, rjc: 0.06, Tlimit: 150 },
+          { name: 'Phase W', P: 600, x: 0.235, y: 0.1, w: 0.05, h: 0.09, timType: 'grease', tim: 50e-6, kTim: 1.0, rcTim: 5e-6, rjc: 0.06, Tlimit: 150 },
         ],
       },
     },
@@ -123,12 +205,12 @@
         flowMode: 'vol', flow: 5 * L_PER_MIN,
         mode: 'load', TsMax: 35, Q: 800, heatArea: 'sources',
         sources: [
-          { name: 'Module 1', P: 130, x: 0.11, y: 0.08, w: 0.17, h: 0.12, tim: 0.001, kTim: 3, rjc: 0, Tlimit: 45 },
-          { name: 'Module 2', P: 130, x: 0.3, y: 0.08, w: 0.17, h: 0.12, tim: 0.001, kTim: 3, rjc: 0, Tlimit: 45 },
-          { name: 'Module 3', P: 130, x: 0.49, y: 0.08, w: 0.17, h: 0.12, tim: 0.001, kTim: 3, rjc: 0, Tlimit: 45 },
-          { name: 'Module 4', P: 130, x: 0.11, y: 0.22, w: 0.17, h: 0.12, tim: 0.001, kTim: 3, rjc: 0, Tlimit: 45 },
-          { name: 'Module 5', P: 130, x: 0.3, y: 0.22, w: 0.17, h: 0.12, tim: 0.001, kTim: 3, rjc: 0, Tlimit: 45 },
-          { name: 'Module 6', P: 130, x: 0.49, y: 0.22, w: 0.17, h: 0.12, tim: 0.001, kTim: 3, rjc: 0, Tlimit: 45 },
+          { name: 'Module 1', P: 130, x: 0.11, y: 0.08, w: 0.17, h: 0.12, timType: 'gappad', tim: 0.001, kTim: 3, rcTim: 20e-6, rjc: 0, Tlimit: 45 },
+          { name: 'Module 2', P: 130, x: 0.3, y: 0.08, w: 0.17, h: 0.12, timType: 'gappad', tim: 0.001, kTim: 3, rcTim: 20e-6, rjc: 0, Tlimit: 45 },
+          { name: 'Module 3', P: 130, x: 0.49, y: 0.08, w: 0.17, h: 0.12, timType: 'gappad', tim: 0.001, kTim: 3, rcTim: 20e-6, rjc: 0, Tlimit: 45 },
+          { name: 'Module 4', P: 130, x: 0.11, y: 0.22, w: 0.17, h: 0.12, timType: 'gappad', tim: 0.001, kTim: 3, rcTim: 20e-6, rjc: 0, Tlimit: 45 },
+          { name: 'Module 5', P: 130, x: 0.3, y: 0.22, w: 0.17, h: 0.12, timType: 'gappad', tim: 0.001, kTim: 3, rcTim: 20e-6, rjc: 0, Tlimit: 45 },
+          { name: 'Module 6', P: 130, x: 0.49, y: 0.22, w: 0.17, h: 0.12, timType: 'gappad', tim: 0.001, kTim: 3, rcTim: 20e-6, rjc: 0, Tlimit: 45 },
         ],
       },
     },
@@ -182,7 +264,7 @@
   };
   const DEFAULT_PUMP = { preset: 'ev', points: PUMPS.ev.points.map((p) => p.slice()), extDp: 20e3, extQ: 10 * L_PER_MIN };
 
-  const Data = { LIQUIDS, GASES, FLUIDS, MATERIALS, PRESETS, PUMPS, DEFAULT_PUMP };
+  const Data = { LIQUIDS, GASES, FLUIDS, MATERIALS, PRESETS, PUMPS, DEFAULT_PUMP, TIMS, setCustomFluid, DEFAULT_CUSTOM_FLUID };
   if (typeof module !== 'undefined' && module.exports) module.exports = Data;
   else root.CPData = Data;
 })(typeof window !== 'undefined' ? window : globalThis);

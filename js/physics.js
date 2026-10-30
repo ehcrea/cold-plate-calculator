@@ -312,6 +312,7 @@
     const issues = g.issues.slice();
     if (issues.some((i) => i.level === 'error')) return { ok: false, geometry: g, issues };
 
+    if (s.fluid === 'custom') Data.setCustomFluid(s.customFluid || Data.DEFAULT_CUSTOM_FLUID);
     const fluid = Data.FLUIDS[s.fluid];
     const mat = Data.MATERIALS[s.material];
     const ks = s.material === 'custom' ? s.kCustom : mat.k;
@@ -395,9 +396,12 @@
       if (vPort > mat.vmax * 1.5) add('warn', `Port velocity ${F('velocity', vPort)} is high — consider a larger port/fitting.`);
       if (v < 0.2) add('info', `Channel velocity is below ${F('velocity', 0.2)} — risk of air entrapment and fouling; flow may not purge bubbles.`);
       if (s.Tin < fluid.freeze + 3) add('error', `Inlet temperature is at or near the freezing point of ${fluid.short} (${F('temp', fluid.freeze)}).`);
-      const Tboil = waterTsat(s.pIn) + fluid.boilOffset;
+      // Aqueous coolants: water saturation at inlet pressure plus an offset. Others: boiling point at 1 atm.
+      const fixedBoil = fluid.boil !== undefined;
+      const Tboil = fixedBoil ? fluid.boil : waterTsat(s.pIn) + fluid.boilOffset;
       r.Tboil = Tboil;
-      if (r.TsMax > Tboil - 5) add('warn', `Peak surface temperature is within ${F('dtemp', 5)} of the coolant boiling point (~${F('temp', Tboil)} at inlet pressure) — local boiling possible.`);
+      if (r.TsMax > Tboil - 5) add('warn', `Peak surface temperature is within ${F('dtemp', 5)} of the coolant boiling point (~${F('temp', Tboil)} ${fixedBoil ? 'at 1 atm' : 'at inlet pressure'}) — local boiling possible.`);
+      if (fluid.dielectric) add('info', `${fluid.short} is a dielectric coolant (safe on live electronics), but its heat capacity and conductivity are far below water/glycol — expect lower performance and check seal/material compatibility.`);
       if (s.material !== 'custom' && mat.family === 'al' && s.fluid === 'water')
         add('info', 'Aluminium with plain water: use inhibited coolant or controlled DI water to avoid corrosion.');
       if (s.material !== 'custom' && mat.family === 'cu' && /fuel/i.test(opts.app || ''))

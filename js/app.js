@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  const { FLUIDS, LIQUIDS, GASES, MATERIALS, PRESETS, PUMPS, DEFAULT_PUMP } = CPData;
+  const { FLUIDS, LIQUIDS, GASES, MATERIALS, PRESETS, PUMPS, DEFAULT_PUMP, TIMS, DEFAULT_CUSTOM_FLUID } = CPData;
   const STORE_KEY = 'coldplate.v1';
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -15,6 +15,7 @@
   state.kCustom = MATERIALS.custom.k;
   state.rhoCustom = MATERIALS.custom.rho;
   state.flowSource = 'fixed';
+  state.customFluid = clone(DEFAULT_CUSTOM_FLUID);
   state.pump = clone(DEFAULT_PUMP);
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -37,11 +38,13 @@
     pp.add(new Option('Custom curve', 'custom'));
 
     const fl = $('#fluid');
-    const groups = [['Liquids', LIQUIDS], ['Gases', GASES]];
-    for (const [label, set] of groups) {
+    const aqueous = Object.keys(LIQUIDS).filter((id) => !LIQUIDS[id].dielectric && !LIQUIDS[id].custom);
+    const dielectric = Object.keys(LIQUIDS).filter((id) => LIQUIDS[id].dielectric);
+    const groups = [['Water & glycols', aqueous], ['Dielectric fluids & oils', dielectric], ['Gases', Object.keys(GASES)], ['Other', ['custom']]];
+    for (const [label, ids] of groups) {
       const og = document.createElement('optgroup');
       og.label = label;
-      for (const [id, f] of Object.entries(set)) og.appendChild(new Option(f.name, id));
+      for (const id of ids) og.appendChild(new Option(FLUIDS[id].name, id));
       fl.appendChild(og);
     }
   }
@@ -65,6 +68,7 @@
       else if (q === 'flow') inp.value = displayNumber(Units.toDisplay(flowQty(), val));
       else inp.value = displayNumber(Units.toDisplay(q, val));
     }
+    for (const inp of $$('[data-cf]')) inp.value = displayNumber(Units.toDisplay(inp.dataset.q, state.customFluid[inp.dataset.cf]));
     for (const span of $$('[data-unit]')) span.textContent = `(${Units.label(span.dataset.unit)})`;
     $('#flow-unit').textContent = `(${Units.label(flowQty())})`;
     renderSources();
@@ -144,14 +148,21 @@
   const SRC_FIELDS = [
     // [key, label, quantity, row]
     ['P', 'Power', 'power', 0], ['Tlimit', 'Temp. limit', 'temp', 0], ['rjc', 'R<sub>jc</sub>', 'rth', 0],
-    ['x', 'Centre x', 'length', 1], ['y', 'Centre y', 'length', 1], ['w', 'Length', 'length', 1], ['h', 'Width', 'length', 1],
-    ['tim', 'TIM thickness', 'length', 2], ['kTim', 'TIM conductivity', 'conductivity', 2],
+    ['x', 'x', 'length', 1], ['y', 'y', 'length', 1], ['w', 'Length', 'length', 1], ['h', 'Width', 'length', 1],
+    ['tim', 'Thickness', 'length', 3], ['kTim', 'k', 'conductivity', 3], ['rcTim', 'R<sub>contact</sub>', 'impedance', 3],
   ];
+
+  /** Total TIM thermal impedance (m²K/W) and resistance (K/W) of a source. */
+  function timOf(src) {
+    const z = (src.tim > 0 && src.kTim > 0 ? src.tim / src.kTim : 0) + (src.rcTim || 0);
+    return { z, R: z / (src.w * src.h) };
+  }
 
   function newSource() {
     const n = state.sources.length + 1;
+    const t = TIMS.grease;
     return { name: `Source ${n}`, P: 200, x: state.L / 2, y: state.W / 2, w: Math.min(0.05, state.L / 3), h: Math.min(0.05, state.W / 3),
-      tim: 0.0001, kTim: 3, rjc: 0, Tlimit: 125 };
+      timType: 'grease', tim: t.t, kTim: t.k, rcTim: t.rc, rjc: 0, Tlimit: 125 };
   }
 
   function renderSources() {
@@ -171,8 +182,17 @@
       del.type = 'button'; del.className = 'icon-btn'; del.dataset.act = 'del'; del.title = 'Remove'; del.textContent = '✕';
       head.append(name, dup, del);
       card.appendChild(head);
-      const rows = [document.createElement('div'), document.createElement('div'), document.createElement('div')];
-      rows[0].className = 'grid3'; rows[1].className = 'grid4'; rows[2].className = 'grid2';
+      const rows = [document.createElement('div'), document.createElement('div'), document.createElement('div'), document.createElement('div')];
+      rows[0].className = 'grid3'; rows[1].className = 'grid4'; rows[2].className = 'tim-row'; rows[3].className = 'grid3';
+      // TIM material picker; its values fill thickness, conductivity and contact resistance.
+      const tl = document.createElement('label');
+      const tt = document.createElement('span'); tt.textContent = 'Thermal interface (TIM)';
+      const sel = document.createElement('select');
+      sel.dataset.tim = '1';
+      for (const [id, t] of Object.entries(TIMS)) sel.add(new Option(t.name, id));
+      sel.value = src.timType in TIMS ? src.timType : 'custom';
+      tl.append(tt, sel);
+      rows[2].appendChild(tl);
       for (const [key, label, q, row] of SRC_FIELDS) {
         const lab = document.createElement('label');
         const t = document.createElement('span');
@@ -186,6 +206,11 @@
         rows[row].appendChild(lab);
       }
       card.append(...rows);
+      const hint = document.createElement('p');
+      hint.className = 'hint';
+      const t = timOf(src);
+      hint.textContent = `TIM total ${fmt('impedance', t.z, { digits: 3 })} → ${fmt('rth', t.R, { digits: 4 })} → ΔT ≈ ${fmt('dtemp', src.P * t.R)} at ${fmtPower(src.P)}`;
+      card.appendChild(hint);
       list.appendChild(card);
     });
     updateSourcesTotal();
@@ -205,12 +230,25 @@
     if (!isFinite(d) || (nonNeg && d < 0) || ((key === 'w' || key === 'h') && d <= 0)) { inp.classList.add('bad'); return; }
     inp.classList.remove('bad');
     state.sources[i][key] = Units.fromDisplay(inp.dataset.q, d);
+    // Changing the material properties makes it a custom TIM (thickness alone is a normal choice for pads).
+    if (key === 'kTim' || key === 'rcTim') { state.sources[i].timType = 'custom'; inp.closest('.src').querySelector('[data-tim]').value = 'custom'; }
+    const card = inp.closest('.src');
+    const t = timOf(state.sources[i]);
+    card.querySelector('.hint').textContent = `TIM total ${fmt('impedance', t.z, { digits: 3 })} → ${fmt('rth', t.R, { digits: 4 })} → ΔT ≈ ${fmt('dtemp', state.sources[i].P * t.R)} at ${fmtPower(state.sources[i].P)}`;
     updateSourcesTotal();
     schedule();
   }
 
   function bindSourceEvents() {
     $('#add-source').addEventListener('click', () => { state.sources.push(newSource()); renderSources(); schedule(); });
+    $('#sources-list').addEventListener('change', (e) => {
+      if (!e.target.dataset.tim) return;
+      const i = +e.target.closest('.src').dataset.i;
+      const t = TIMS[e.target.value];
+      Object.assign(state.sources[i], { timType: e.target.value, tim: t.t, kTim: t.k, rcTim: t.rc });
+      renderSources();
+      schedule();
+    });
     $('#sources-list').addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
       if (!b) return;
@@ -271,7 +309,7 @@
     setRadio('flowsrc', 'flowsrc', state.flowSource);
 
     const active = new Set([state.shape, state.mode, state.layout === 'serpentine' ? 'serpentine' : 'parallel',
-      state.heatArea === 'sources' ? 'sources' : 'uniform', state.flowSource === 'pump' ? 'pump' : 'fixedflow']);
+      state.heatArea === 'sources' ? 'sources' : 'uniform', state.fluid === 'custom' ? 'customfluid' : 'none', state.flowSource === 'pump' ? 'pump' : 'fixedflow']);
     if (state.material === 'custom') active.add('custom-material');
     for (const n of $$('[data-show]')) n.hidden = !n.dataset.show.split(' ').some((t) => active.has(t));
 
@@ -319,8 +357,20 @@
 
   function onInput(e) {
     const inp = e.target;
+    if (inp.dataset.tim) return; // handled by the sources list
     if (inp.dataset.src) { onSourceInput(inp); return; }
     if (inp.dataset.pt !== undefined || inp.dataset.pump) { onPumpInput(inp); return; }
+    if (inp.dataset.cf) {
+      const d = parseFloat(inp.value);
+      const signed = inp.dataset.cf === 'freeze' || inp.dataset.cf === 'boil';
+      if (!isFinite(d) || (!signed && d <= 0)) { inp.classList.add('bad'); return; }
+      inp.classList.remove('bad');
+      state.customFluid[inp.dataset.cf] = Units.fromDisplay(inp.dataset.q, d);
+      CPData.setCustomFluid(state.customFluid);
+      syncControls();
+      schedule();
+      return;
+    }
     const key = inp.dataset.key;
     if (!key) return;
     if (inp.type === 'checkbox') state[key] = inp.checked;
@@ -385,7 +435,7 @@
     $('#preset').addEventListener('change', (e) => {
       const p = PRESETS[e.target.value];
       if (!p) return;
-      state = Object.assign({ kCustom: state.kCustom, rhoCustom: state.rhoCustom, sources: [], flowSource: 'fixed', pump: state.pump }, clone(p.state));
+      state = Object.assign({ kCustom: state.kCustom, rhoCustom: state.rhoCustom, sources: [], flowSource: 'fixed', pump: state.pump, customFluid: state.customFluid }, clone(p.state));
       currentApp = p.name;
       renderInputs();
       schedule();
@@ -446,6 +496,8 @@
     }
     if (!Array.isArray(state.sources)) state.sources = [];
     if (!state.pump || !Array.isArray(state.pump.points)) state.pump = clone(DEFAULT_PUMP);
+    if (!state.customFluid) state.customFluid = clone(DEFAULT_CUSTOM_FLUID);
+    state.sources.forEach((src) => { if (!src.timType) { src.timType = 'custom'; src.rcTim = 0; } });
     if (state.flowSource !== 'pump') state.flowSource = 'fixed';
   }
   function save() {
@@ -657,6 +709,7 @@
     return map.sources.map((r) => ({
       name: r.name, P: fmtPower(r.P),
       plate: `${fmt('temp', r.Tplate, { noUnit: true })} / ${fmt('temp', r.TplateMax)}`,
+      dtim: fmt('dtemp', r.dTtim),
       tcase: fmt('temp', r.Tcase), tj: fmt('temp', r.Tj), limit: fmt('temp', r.limit),
       margin: fmt('dtemp', r.margin), ok: r.margin >= 0,
     }));
@@ -669,15 +722,15 @@
     if (!show) return;
     const t = document.createElement('table');
     t.className = 'data';
-    const head = ['Component', 'Power', 'Plate avg / max', 'Case', 'Junction', 'Limit', 'Margin', 'Status'];
+    const head = ['Component', 'Power', 'Plate avg / max', 'TIM ΔT', 'Case', 'Junction', 'Limit', 'Margin', 'Status'];
     const thead = t.createTHead().insertRow();
     head.forEach((h) => { const th = document.createElement('th'); th.textContent = h; thead.appendChild(th); });
     const tb = t.createTBody();
     for (const r of sourceRows(map)) {
       const tr = tb.insertRow();
-      [r.name, r.P, r.plate, r.tcase, r.tj, r.limit, r.margin].forEach((v, i) => {
+      [r.name, r.P, r.plate, r.dtim, r.tcase, r.tj, r.limit, r.margin].forEach((v, i) => {
         const td = tr.insertCell(); td.textContent = v;
-        if (i === 4) td.className = 'strong';
+        if (i === 5) td.className = 'strong';
       });
       const st = tr.insertCell();
       const sp = document.createElement('span');
@@ -747,7 +800,8 @@
       ['Hydraulic pump power', Units.system === 'SI' ? fmt('power', res.pumpPower, { digits: 2 }) : fmt('power2', res.pumpPower, { digits: 4 })],
       ['Plate mass (dry)', fmt('mass', res.plateMass)],
       ['Coolant volume', fmt('volume', res.fluidVol)],
-      gas ? ['Mach number', Units.fmtNumber(res.Mach, 3)] : ['Boiling point at inlet p', fmt('temp', res.Tboil)],
+      gas ? ['Mach number', Units.fmtNumber(res.Mach, 3)]
+        : [FLUIDS[state.fluid].boil !== undefined ? 'Boiling point (1 atm)' : 'Boiling point at inlet p', fmt('temp', res.Tboil)],
     ];
     if (state.heatArea === 'sources') items.push(['1D check (same power, uniform)', `peak ${fmt('temp', res.TsMax)}`]);
     else if (state.mode === 'capacity') items.push(['1D quick estimate', fmtPower(res.Q), 'uniform-heat model']);
@@ -915,7 +969,7 @@
     result: () => lastResult,
     map: () => lastMap,
     op: () => lastOp,
-    distSummary,
+    distSummary, timOf,
     thermal, sourceRows,
     appName: () => currentApp,
     metricItems, fmtPower, shareUrl, toast,
@@ -925,6 +979,7 @@
   // ---------- Init ----------
   populateSelects();
   loadSaved();
+  CPData.setCustomFluid(state.customFluid);
   bindEvents();
   bindSourceEvents();
   bindPumpEvents();

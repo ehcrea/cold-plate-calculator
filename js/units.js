@@ -35,6 +35,7 @@
     powerAlt:    { si: 'W',       SI: linear('kW', 1e-3),             IMP: linear('BTU/h', 3.412142) },
     velocity:    { si: 'm/s',     SI: linear('m/s', 1),               IMP: linear('ft/s', 1 / 0.3048) },
     htc:         { si: 'W/m²K',   SI: linear('W/m²·K', 1),            IMP: linear('BTU/h·ft²·°F', 1 / 5.678263) },
+    impedance:   { si: 'm²K/W',   SI: linear('K·cm²/W', 1e4),         IMP: linear('°F·in²/W', 1.8 / 0.00064516) },
     rth:         { si: 'K/W',     SI: linear('K/W', 1),               IMP: linear('°F/W', 1.8) },
     flux:        { si: 'W/m²',    SI: linear('W/cm²', 1e-4),          IMP: linear('W/in²', 0.00064516) },
     mass:        { si: 'kg',      SI: linear('kg', 1),                IMP: linear('lb', 1 / 0.45359237) },

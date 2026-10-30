@@ -169,6 +169,7 @@ label.check input { width: 16px; height: 16px; accent-color: var(--accent); }
 .icon-btn { flex: none; width: 30px; height: 30px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2); border-radius: 7px; cursor: pointer; font-size: 14px; line-height: 1; }
 .icon-btn:hover { color: var(--text); background: var(--surface); border-color: var(--text-3); }
 .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.tim-row label { grid-template-columns: 1fr; }
 #sources-list { display: flex; flex-direction: column; gap: 10px; }
 
 /* Source results table */
