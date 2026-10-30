@@ -9,6 +9,7 @@
   const JSPDF_URL = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
   const PAGE = { w: 210, h: 297, m: 15 };
   const INK = [11, 11, 11], INK2 = [82, 81, 78], INK3 = [122, 121, 115], RULE = [226, 225, 220], ACCENT = [42, 120, 214];
+  const OK_GREEN = [0, 131, 0], DIFF_BG = [255, 240, 210];
   const LEVEL_COLORS = { error: [198, 40, 40], warn: [178, 107, 0], info: [42, 120, 214] };
 
   let loading = null;
@@ -104,6 +105,82 @@
     }
     pdf.setFontSize(size);
     return lines * LH;
+  }
+
+  /**
+   * Table with a wide first column. rows: { section } | { cells, marks?, mark: 'best' | 'diff', bold? }.
+   */
+  function dataTable(pdf, w, headers, rows, firstW) {
+    const contentW = PAGE.w - 2 * PAGE.m;
+    const n = headers.length;
+    const colW = (contentW - firstW) / Math.max(1, n - 1);
+    const left = (i) => (i === 0 ? PAGE.m : PAGE.m + firstW + (i - 1) * colW);
+    const size = n > 5 ? 7 : 7.5, LH = size * 0.3528 * 1.25;
+    const lines = (txt, i) => pdf.splitTextToSize(clean(txt), (i === 0 ? firstW : colW) - 2.5);
+    const head = () => {
+      w.font(size, 'bold', INK3);
+      const hl = headers.map((h, i) => lines(h, i));
+      const hh = Math.max(...hl.map((l) => l.length)) * LH + 1.5;
+      hl.forEach((l, i) => pdf.text(l, i === 0 ? left(0) : left(i) + colW - 1, w.y + LH, { align: i === 0 ? 'left' : 'right' }));
+      w.y += hh;
+      pdf.setDrawColor(...INK3); pdf.setLineWidth(0.25); pdf.line(PAGE.m, w.y, PAGE.m + contentW, w.y);
+    };
+    w.ensure(12);
+    head();
+    for (const r of rows) {
+      if (r.section) {
+        w.ensure(7);
+        w.font(6.5, 'bold', INK3);
+        pdf.text(clean(r.section.toLocaleUpperCase(I18N.locale)), PAGE.m, w.y + 4.2);
+        w.y += 5.2;
+        continue;
+      }
+      w.font(size);
+      const cl = r.cells.map((c, i) => lines(c, i));
+      const h = Math.max(...cl.map((l) => l.length)) * LH + 1.8;
+      if (w.y + h > PAGE.h - PAGE.m - 8) { pdf.addPage(); w.y = PAGE.m; head(); }
+      cl.forEach((l, i) => {
+        const marked = r.marks && r.marks[i];
+        if (marked && r.mark === 'diff') { pdf.setFillColor(...DIFF_BG); pdf.rect(left(i) + 0.8, w.y + 0.3, (i === 0 ? firstW : colW) - 0.8, h - 0.6, 'F'); }
+        const best = marked && r.mark === 'best';
+        w.font(size, i > 0 && (best || r.bold) ? 'bold' : 'normal', i === 0 ? INK2 : best ? OK_GREEN : INK);
+        pdf.text(l, i === 0 ? left(0) : left(i) + colW - 1, w.y + LH + 0.4, { align: i === 0 ? 'left' : 'right' });
+      });
+      w.y += h;
+      pdf.setDrawColor(...RULE); pdf.setLineWidth(0.15); pdf.line(PAGE.m, w.y, PAGE.m + contentW, w.y);
+    }
+    w.y += 3;
+  }
+
+  /** Design comparison and parameter sweep, when the user has made them. */
+  function studySections(pdf, w, figs) {
+    const data = App.studyReport();
+    const contentW = PAGE.w - 2 * PAGE.m, colW = (contentW - 8) / 2;
+    const note = (txt) => {
+      w.font(7.5, 'normal', INK3);
+      const l = pdf.splitTextToSize(clean(txt), contentW);
+      pdf.text(l, PAGE.m, w.y + 2.5);
+      w.y += l.length * 3.3 + 1.5;
+    };
+    if (data.compare) {
+      w.ensure(40);
+      w.heading(t('Design comparison'));
+      note(t('Best value in each row in green; shaded cells mark inputs that differ from the current design.'));
+      dataTable(pdf, w, data.compare.headers, data.compare.rows, 42);
+    }
+    if (data.sweep) {
+      w.ensure(80);
+      w.heading(t('Parameter sweep'));
+      note(data.sweep.title);
+      if (figs.sweep1) {
+        const y0 = w.y;
+        const h1 = w.image(figs.sweep1, colW, 55, PAGE.m);
+        w.y = y0;
+        const h2 = w.image(figs.sweep2, colW, 55, PAGE.m + colW + 8);
+        w.y = y0 + Math.max(h1, h2) + 3;
+      }
+      dataTable(pdf, w, data.sweep.headers, data.sweep.rows, 30);
+    }
   }
 
   /** Appendix: the step-by-step calculation with formulas and substituted values. */
@@ -210,8 +287,8 @@
       // The thermal curve is computed in the background; wait for it to finish drawing.
       for (let i = 0; i < 100 && !document.querySelector('#chart1 svg') && App.thermal(); i++) await new Promise((r) => setTimeout(r, 50));
       const grab = (sel) => { const s = document.querySelector(sel + ' svg'); return s ? svgToPng(s) : Promise.resolve(null); };
-      const [top, section, map, chart1, chart2, dist] = await Promise.all([grab('#drawing'), grab('#section'), grab('#map'), grab('#chart1'), grab('#chart2'), grab('#dist-chart')]);
-      return { top, section, map, chart1, chart2, dist };
+      const [top, section, map, chart1, chart2, dist, sweep1, sweep2] = await Promise.all([grab('#drawing'), grab('#section'), grab('#map'), grab('#chart1'), grab('#chart2'), grab('#dist-chart'), grab('#sweep-chart1'), grab('#sweep-chart2')]);
+      return { top, section, map, chart1, chart2, dist, sweep1, sweep2 };
     } finally {
       if (prev === null) html.removeAttribute('data-theme'); else html.setAttribute('data-theme', prev);
       App.rerender();
@@ -613,6 +690,8 @@
     const h1 = w.image(figs.chart1, colW, 55, PAGE.m);
     w.image(figs.chart2, colW, 55, PAGE.m + colW + 8);
     w.y += h1 + 4;
+
+    studySections(pdf, w, figs);
 
     // Method
     w.heading(t('Method and limits'));

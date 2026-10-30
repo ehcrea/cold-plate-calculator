@@ -236,6 +236,51 @@ check('formula markup renders to HTML and plain text', () => {
   assert.strictEqual(S.toText('D_{h} = 10^{−3}·Gz^{2/3}'), 'Dh = 10⁻³·Gz^(2/3)');
 });
 
+console.log('Design studies');
+const ST = require('../js/study.js');
+check('sweep values: evenly spaced, integers rounded, current value included and sorted', () => {
+  assert.deepStrictEqual(ST.sweepValues(10, 20, 3, false, 12), [10, 12, 15, 20]);
+  assert.deepStrictEqual(ST.sweepValues(20, 10, 3, false, 25), [10, 15, 20]);
+  assert.deepStrictEqual(ST.sweepValues(4, 10, 4, true, 6), [4, 6, 8, 10]);
+});
+check('applying a parameter changes only that input (power scale multiplies every source)', () => {
+  const s = D.PRESETS.inverter.state;
+  const a = ST.applyParam(s, 'cw', 0.002);
+  assert.strictEqual(a.cw, 0.002); assert.strictEqual(s.cw, D.PRESETS.inverter.state.cw);
+  const b = ST.applyParam(s, 'pscale', 2);
+  b.sources.forEach((x, i) => near(x.P, 2 * s.sources[i].P, 1e-9));
+  assert.strictEqual(ST.applyParam(s, 'count', 7.6).count, 8);
+});
+check('every sweepable parameter reproduces the design at its current value', () => {
+  for (const [id, p] of Object.entries(D.PRESETS)) {
+    const base = ST.metrics(ST.evaluateDesign(p.state));
+    assert.ok(base.ok, id);
+    for (const par of ST.paramsFor(p.state)) {
+      const m = ST.metrics(ST.evaluateDesign(ST.applyParam(p.state, par.key, ST.paramValue(p.state, par.key))));
+      near(m.headline / base.headline, 1, 1e-9, `${id} ${par.key}`);
+    }
+  }
+});
+check('more flow lowers the hottest temperature and raises the pressure drop', () => {
+  for (const id of ['inverter', 'battery', 'gpu']) {
+    const s = D.PRESETS[id].state;
+    const lo = ST.metrics(ST.evaluateDesign(ST.applyParam(s, 'flow', s.flow * 0.6), { maxCells: 2500 }));
+    const hi = ST.metrics(ST.evaluateDesign(ST.applyParam(s, 'flow', s.flow * 1.6), { maxCells: 2500 }));
+    assert.ok(hi.headline < lo.headline && hi.dp > lo.dp, id);
+  }
+});
+check('a hotter inlet lowers the capacity of a plate at a fixed surface limit', () => {
+  const s = Object.assign({}, D.PRESETS.fuelcell.state, { heatArea: 'full', mode: 'capacity' });
+  const a = ST.metrics(ST.evaluateDesign(ST.applyParam(s, 'Tin', s.Tin - 10), { maxCells: 2500 }));
+  const b = ST.metrics(ST.evaluateDesign(ST.applyParam(s, 'Tin', s.Tin + 10), { maxCells: 2500 }));
+  assert.ok(a.kind === 'q' && a.Q > b.Q);
+});
+check('invalid variants are reported, not thrown', () => {
+  const m = ST.metrics(ST.evaluateDesign(ST.applyParam(D.PRESETS.inverter.state, 'count', 500)));
+  assert.strictEqual(m.ok, false);
+});
+check('CSV quoting', () => assert.strictEqual(ST.toCsv([['a,b', 'c"d', 1.5]]), '"a,b","c""d",1.5'));
+
 console.log('Translations');
 const I18N = require('../js/i18n.js');
 const fs = require('fs');
@@ -259,7 +304,7 @@ check('all data names (presets, materials, fluids, pumps, TIMs) are translated',
 check('every literal t(...) key and solver message template is translated', () => {
   const miss = new Set();
   const need = (k) => { if (k && !KEYS.has(k)) miss.add(k); };
-  for (const f of ['app.js', 'report.js', 'drawing.js', 'charts.js']) {
+  for (const f of ['app.js', 'report.js', 'drawing.js', 'charts.js', 'study.js']) {
     const src = fs.readFileSync(path.join(__dirname, '../js', f), 'utf8');
     for (const m of src.matchAll(/\bt\('((?:[^'\\]|\\.)*)'/g)) need(m[1].replace(/\\'/g, "'"));
   }
@@ -267,6 +312,14 @@ check('every literal t(...) key and solver message template is translated', () =
   for (const m of phys.matchAll(/(?:\bM|add)\('(?:error|warn|info)', (?:[^']*\? )?'([^']+)'(?: : '([^']+)')?/g)) { need(m[1]); need(m[2]); }
   for (const m of phys.matchAll(/msg: '([^']+)'/g)) need(m[1]);
   for (const k of stepKeys) need(k);
+  for (const par of ST.PARAMS) {
+    if (typeof par.label === 'string') need(par.label);
+    else { need(par.label({ layout: 'serpentine' })); need(par.label({ layout: 'parallelZ' })); }
+  }
+  for (const k of ['Hottest junction', 'Max. heat dissipation', 'Peak surface temperature', 'Total heat', 'Margin to limit', 'Power headroom',
+    'Peak plate surface', 'Plate temperature spread', 'Coolant outlet', 'Volume flow (mean)', 'Pressure drop', 'Hydraulic pump power', 'Channel velocity',
+    'Reynolds number', 'Heat transfer coeff.', 'Lowest channel flow', 'Plate mass (dry)', 'Coolant volume', 'Application', 'Plate', 'Material',
+    'Flow layout', 'Channels', 'Coolant', 'Inlet temperature', 'Flow', 'Heat input', 'Serpentine', 'Parallel · Z', 'Parallel · U']) need(k);
   assert.deepStrictEqual([...miss], []);
 });
 check('t() fills placeholders and translates names passed as parameters', () => {

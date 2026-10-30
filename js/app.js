@@ -632,6 +632,7 @@
     renderBars(res);
     renderSteps(res);
     renderCharts(res);
+    if (study) study.render();
   }
 
   /** Headline thermal numbers: from the 2D map when available, otherwise the 1D model. */
@@ -1038,7 +1039,7 @@
   }
 
   // Read-only hooks for the PDF report.
-  window.App = { calcSteps,
+  window.App = { calcSteps, studyReport: () => (study ? study.reportData() : {}),
     state: () => state,
     result: () => lastResult,
     map: () => lastMap,
@@ -1088,6 +1089,23 @@
     box.appendChild(ol);
   }
 
+  // ---------- Design studies (comparison, sweep) ----------
+
+  let study = null;
+  function initStudy() {
+    study = Study.init({
+      t, fmtPower, toast,
+      flowQty: (s) => ({ vol: 'volflow', mass: 'massflow', std: 'stdflow' }[s.flowMode]),
+      current: () => ({ state, app: currentApp, s: calcState, res: lastResult, map: lastMap, op: lastOp }),
+      load: (s, app) => {
+        state = s;
+        if (app !== undefined) currentApp = app;
+        renderInputs();
+        schedule();
+      },
+    });
+  }
+
   // ---------- Init ----------
   I18N.init();
   populateSelects();
@@ -1096,6 +1114,7 @@
   bindEvents();
   bindSourceEvents();
   bindPumpEvents();
+  initStudy();
   renderInputs();
   update();
 })();

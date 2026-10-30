@@ -293,6 +293,7 @@ svg .channel-cut { fill: var(--accent-soft); stroke: var(--accent); stroke-width
   .card, fieldset { box-shadow: none; break-inside: avoid; }
   .notes { display: block; }
   .steps:not([open]) { display: none; }
+  #sweep-card .sweep-controls, #compare-card .card-actions, .cmp-actions, table.sweep td:last-child, table.sweep th:last-child { display: none; }
   .calc-step { break-inside: avoid; }
   .notes[open] summary ~ *, .notes summary ~ * { display: block; }
 }
@@ -360,3 +361,32 @@ svg .channel-cut { fill: var(--accent-soft); stroke: var(--accent); stroke-width
 .help h3 { font-size: 14px; margin: 16px 0 6px; }
 .help ol, .help ul { margin: 0 0 8px; padding-left: 20px; line-height: 1.55; }
 .help li { margin-bottom: 5px; }
+
+/* Parameter sweep and design comparison */
+.card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-small { height: 26px; padding: 0 9px; font-size: 12px; }
+.sweep-controls { display: grid; grid-template-columns: minmax(160px, 2fr) repeat(3, minmax(80px, 1fr)) auto; gap: 10px; align-items: end; }
+.sweep-controls .btn { height: 34px; white-space: nowrap; }
+.sweep-status { margin: 8px 0 0; font-size: 12px; color: var(--text-3); min-height: 1em; }
+.sweep-out { margin-top: 10px; }
+.sub-title { font-size: 13px; margin: 0 0 6px; }
+#sweep-card.stale .sweep-out, #sweep-card.stale #sweep-table { opacity: .5; }
+#sweep-card.stale .sweep-status { color: var(--warn); }
+table.sweep tr.current td { font-weight: 700; background: var(--accent-soft); }
+table.data td.over { color: var(--err); font-weight: 600; }
+.muted { color: var(--text-3); font-size: 12px; }
+table.compare th { vertical-align: bottom; min-width: 130px; }
+table.compare td { white-space: normal; min-width: 110px; }
+table.compare td:first-child { color: var(--text-2); min-width: 150px; }
+table.compare tr.cmp-section td { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); padding-top: 14px; }
+table.compare td.diff { background: var(--warn-bg); }
+table.compare td.best { color: var(--ok); font-weight: 700; }
+.cmp-name { font-weight: 600; color: var(--text); }
+.cmp-name-input { width: 100%; font: inherit; font-weight: 600; text-align: right; height: 28px; padding: 3px 6px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); color: var(--text); }
+.cmp-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
+.cmp-actions .icon-btn { width: 26px; height: 26px; font-size: 12px; }
+.compare-empty { color: var(--text-3); font-size: 13px; margin: 4px 0; }
+@media (max-width: 700px) {
+  .sweep-controls { grid-template-columns: 1fr 1fr; }
+  .sweep-controls label:first-child, .sweep-controls .btn { grid-column: 1 / -1; }
+}

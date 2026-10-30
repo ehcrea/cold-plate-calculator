@@ -26,10 +26,22 @@
     return ticks;
   }
 
+  /** Nice ticks spanning [min, max] (for axes that do not start at zero). */
+  function niceRange(min, max, n = 4) {
+    if (!(max > min)) { const d = Math.abs(min) * 0.05 || 1; min -= d; max += d; }
+    const raw = (max - min) / n;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw);
+    const ticks = [];
+    for (let v = Math.floor(min / step + 1e-9) * step; v < max + step * 0.999; v += step) ticks.push(+v.toPrecision(10));
+    return ticks;
+  }
+
   /**
    * @param container element
    * @param o { data: [{x, y}] | series: [{name, data}], op: {x, y}, opLabel,
-   *            xTitle, yTitle, fmtX, fmtY, fmtXFull, fmtYFull, yMaxHint }
+   *            xTitle, yTitle, fmtX, fmtY, fmtXFull, fmtYFull, yMaxHint,
+   *            xFrom / yFrom: 'data' to start the axis at the data instead of zero }
    */
   function lineChart(container, o) {
     const W = Math.max(260, container.clientWidth || 420), H = 230;
@@ -56,16 +68,18 @@
     const iw = W - m.l - m.r, ih = H - m.t - m.b;
     const all = series.flatMap((s) => s.data);
     const xMax = Math.max(...all.map((d) => d.x));
-    const yTicks = niceTicks(o.yMaxHint || Math.max(...all.map((d) => d.y), o.op ? o.op.y : 0));
-    const yMax = yTicks[yTicks.length - 1];
-    const xTicks = niceTicks(xMax, 5).filter((t) => t <= xMax * 1.0001);
-    const sx = (x) => m.l + (x / xMax) * iw;
-    const sy = (y) => m.t + ih - (Math.min(y, yMax * 1.05) / yMax) * ih;
+    const x0 = o.xFrom === 'data' ? Math.min(...all.map((d) => d.x)) : 0;
+    const ys = all.map((d) => d.y).concat(o.op && isFinite(o.op.y) ? [o.op.y] : []);
+    const yTicks = o.yFrom === 'data' ? niceRange(Math.min(...ys), Math.max(...ys)) : niceTicks(o.yMaxHint || Math.max(...ys, 0));
+    const y0 = yTicks[0], yMax = yTicks[yTicks.length - 1];
+    const xTicks = (x0 ? niceRange(x0, xMax, 5) : niceTicks(xMax, 5)).filter((t) => t >= x0 - (xMax - x0) * 1e-4 && t <= xMax + (xMax - x0) * 1e-4);
+    const sx = (x) => m.l + ((x - x0) / (xMax - x0 || 1)) * iw;
+    const sy = (y) => m.t + ih - ((Math.min(y, yMax + (yMax - y0) * 0.05) - y0) / (yMax - y0)) * ih;
 
     const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${o.yTitle} versus ${o.xTitle}` }, container);
     const ax = el('g', { class: 'axis' }, svg);
     yTicks.forEach((t) => {
-      el('line', { x1: m.l, x2: m.l + iw, y1: sy(t), y2: sy(t), class: t === 0 ? 'baseline' : 'gridline' }, ax);
+      el('line', { x1: m.l, x2: m.l + iw, y1: sy(t), y2: sy(t), class: t === y0 ? 'baseline' : 'gridline' }, ax);
       const tx = el('text', { x: m.l - 6, y: sy(t) + 4, 'text-anchor': 'end' }, ax);
       tx.textContent = o.fmtY(t);
     });
@@ -87,7 +101,7 @@
     const labels = [];
     series.forEach((s) => {
       const d = s.data.map((p, i) => `${i ? 'L' : 'M'}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join('');
-      if (!multi) el('path', { d: `${d}L${sx(s.data[s.data.length - 1].x)},${sy(0)}L${sx(s.data[0].x)},${sy(0)}Z`, class: 'area' }, svg);
+      if (!multi) el('path', { d: `${d}L${sx(s.data[s.data.length - 1].x)},${sy(y0)}L${sx(s.data[0].x)},${sy(y0)}Z`, class: 'area' }, svg);
       el('path', { d, class: `line s${s.slot}`, 'clip-path': `url(#${clipId})` }, svg);
       if (multi) {
         // Direct label at the last point inside the plot.

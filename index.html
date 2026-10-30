@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f4f4f2" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="css/style.css?v=27">
+  <link rel="stylesheet" href="css/style.css?v=31">
   <script>
     // Apply the saved theme before first paint to avoid a flash.
     try { const t = localStorage.getItem('coldplate.theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) { /* storage unavailable */ }
@@ -291,6 +291,39 @@
         </div>
       </div>
 
+      <div class="card" id="sweep-card">
+        <div class="card-head">
+          <h2>Parameter sweep</h2>
+          <button type="button" class="btn" id="sweep-csv" hidden>Export CSV</button>
+        </div>
+        <p class="card-note">Vary one input over a range and see how the result and the pressure drop respond. Uses a coarser 2D grid for speed.</p>
+        <div class="sweep-controls">
+          <label>Parameter<select id="sweep-param" aria-label="Parameter"></select></label>
+          <label>From <span class="u" id="sweep-u1"></span><input type="number" step="any" id="sweep-from"></label>
+          <label>To <span class="u" id="sweep-u2"></span><input type="number" step="any" id="sweep-to"></label>
+          <label>Points<input type="number" step="1" min="3" max="25" id="sweep-n"></label>
+          <button type="button" class="btn btn-primary" id="sweep-run">Run sweep</button>
+        </div>
+        <p class="sweep-status" id="sweep-status" role="status"></p>
+        <div class="grid-cards sweep-out" id="sweep-out" hidden>
+          <div><h3 class="sub-title" id="sweep-t1"></h3><div class="chart" id="sweep-chart1"></div></div>
+          <div><h3 class="sub-title" id="sweep-t2"></h3><div class="chart" id="sweep-chart2"></div></div>
+        </div>
+        <div class="table-wrap" id="sweep-table"></div>
+      </div>
+
+      <div class="card" id="compare-card">
+        <div class="card-head">
+          <h2>Design comparison</h2>
+          <div class="card-actions">
+            <button type="button" class="btn" id="compare-csv" hidden>Export CSV</button>
+            <button type="button" class="btn btn-primary" id="compare-add">Add current design</button>
+          </div>
+        </div>
+        <p class="card-note">Save up to four variants and compare them side by side with the current design. The best value in each row is highlighted, and inputs that differ from the current design are marked.</p>
+        <div class="table-wrap" id="compare-table"></div>
+      </div>
+
       <details class="card notes steps" id="steps-card">
         <summary>Step-by-step calculation</summary>
         <p class="card-note">The 1D model written out: each formula with this design's numbers substituted, in SI units. Use it to check results by hand or for teaching.</p>
@@ -324,15 +357,16 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script src="js/units.js?v=27"></script>
-  <script src="js/i18n.js?v=27"></script>
-  <script src="js/data.js?v=27"></script>
-  <script src="js/physics.js?v=27"></script>
-  <script src="js/physics2d.js?v=27"></script>
-  <script src="js/steps.js?v=27"></script>
-  <script src="js/drawing.js?v=27"></script>
-  <script src="js/charts.js?v=27"></script>
-  <script src="js/report.js?v=27"></script>
-  <script src="js/app.js?v=27"></script>
+  <script src="js/units.js?v=31"></script>
+  <script src="js/i18n.js?v=31"></script>
+  <script src="js/data.js?v=31"></script>
+  <script src="js/physics.js?v=31"></script>
+  <script src="js/physics2d.js?v=31"></script>
+  <script src="js/steps.js?v=31"></script>
+  <script src="js/study.js?v=31"></script>
+  <script src="js/drawing.js?v=31"></script>
+  <script src="js/charts.js?v=31"></script>
+  <script src="js/report.js?v=31"></script>
+  <script src="js/app.js?v=31"></script>
 </body>
 </html>
