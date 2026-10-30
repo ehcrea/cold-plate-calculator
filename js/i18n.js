@@ -463,10 +463,36 @@
     ['Cold Plate Calculator (link with all inputs)', 'Kühlplatten-Rechner (Link mit allen Eingaben)', 'Koelplaatcalculator (link met alle invoer)', 'Soğutma Plakası Hesaplayıcı (tüm girdileri içeren bağlantı)'],
     ['Cold Plate Calculator v2 · engineering estimate, validate final designs by CFD or test', 'Kühlplatten-Rechner v2 · ingenieurmäßige Abschätzung, endgültige Auslegung per CFD oder Versuch validieren', 'Koelplaatcalculator v2 · technische schatting, valideer definitieve ontwerpen met CFD of test', 'Soğutma Plakası Hesaplayıcı v2 · mühendislik tahmini, nihai tasarımları CFD veya testle doğrulayın'],
     ['Page {i} of {n}', 'Seite {i} von {n}', 'Pagina {i} van {n}', 'Sayfa {i} / {n}'],
+    ['About', 'Über', 'Over', 'Hakkında'],
+    ['About this calculator', 'Über diesen Rechner', 'Over deze calculator', 'Bu hesaplayıcı hakkında'],
+    ['Close', 'Schließen', 'Sluiten', 'Kapat'],
+    ['MIT License', 'MIT-Lizenz', 'MIT-licentie', 'MIT Lisansı'],
   ];
 
   // Blocks with inline markup, translated as a whole (static, trusted content).
   const HTML = {
+    about: {
+      en: `<div class="about-head"><img src="icons/favicon.svg" alt=""><div><h2 id="about-title">Cold Plate Calculator</h2><p>Version 2 · by Eren Tozlu</p></div></div>
+<p>A free, browser-based tool for first-pass sizing of liquid- and gas-cooled cold plates for power electronics, batteries and fuel-cell systems. It couples a 2D conduction model of the plate with 1D channel hydraulics, pump matching and manifold flow distribution. All calculations run in your browser.</p>
+<p>Made by Eren Tozlu. More engineering tools and projects at <a href="https://ehcrea.com" target="_blank" rel="noopener">ehcrea.com</a>.</p>
+<p>Open source under the <a href="https://github.com/ehcrea/cold-plate-calculator/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>; the source code is on <a href="https://github.com/ehcrea/cold-plate-calculator" target="_blank" rel="noopener">GitHub</a>.</p>
+<p class="about-meta">Results are engineering estimates. Validate final designs by CFD or test.</p>`,
+      de: `<div class="about-head"><img src="icons/favicon.svg" alt=""><div><h2 id="about-title">Kühlplatten-Rechner</h2><p>Version 2 · von Eren Tozlu</p></div></div>
+<p>Ein kostenloses Browser-Werkzeug zur Vorauslegung flüssigkeits- und gasgekühlter Kühlplatten für Leistungselektronik, Batterien und Brennstoffzellensysteme. Es koppelt ein 2D-Wärmeleitungsmodell der Platte mit 1D-Kanalhydraulik, Pumpenabgleich und Strömungsverteilung in Verteilern. Alle Berechnungen laufen in Ihrem Browser.</p>
+<p>Entwickelt von Eren Tozlu. Weitere technische Werkzeuge und Projekte auf <a href="https://ehcrea.com" target="_blank" rel="noopener">ehcrea.com</a>.</p>
+<p>Open Source unter der <a href="https://github.com/ehcrea/cold-plate-calculator/blob/main/LICENSE" target="_blank" rel="noopener">MIT-Lizenz</a>; der Quellcode liegt auf <a href="https://github.com/ehcrea/cold-plate-calculator" target="_blank" rel="noopener">GitHub</a>.</p>
+<p class="about-meta">Die Ergebnisse sind ingenieurmäßige Abschätzungen. Endgültige Auslegungen per CFD oder Versuch validieren.</p>`,
+      nl: `<div class="about-head"><img src="icons/favicon.svg" alt=""><div><h2 id="about-title">Koelplaatcalculator</h2><p>Versie 2 · door Eren Tozlu</p></div></div>
+<p>Een gratis browsertool voor het voorontwerp van vloeistof- en gasgekoelde koelplaten voor vermogenselektronica, batterijen en brandstofcelsystemen. Het koppelt een 2D-warmtegeleidingsmodel van de plaat aan 1D-kanaalhydraulica, pompafstemming en stromingsverdeling in verdelers. Alle berekeningen draaien in uw browser.</p>
+<p>Gemaakt door Eren Tozlu. Meer technische tools en projecten op <a href="https://ehcrea.com" target="_blank" rel="noopener">ehcrea.com</a>.</p>
+<p>Open source onder de <a href="https://github.com/ehcrea/cold-plate-calculator/blob/main/LICENSE" target="_blank" rel="noopener">MIT-licentie</a>; de broncode staat op <a href="https://github.com/ehcrea/cold-plate-calculator" target="_blank" rel="noopener">GitHub</a>.</p>
+<p class="about-meta">De resultaten zijn technische schattingen. Valideer definitieve ontwerpen met CFD of test.</p>`,
+      tr: `<div class="about-head"><img src="icons/favicon.svg" alt=""><div><h2 id="about-title">Soğutma Plakası Hesaplayıcı</h2><p>Sürüm 2 · Eren Tozlu</p></div></div>
+<p>Güç elektroniği, bataryalar ve yakıt hücresi sistemleri için sıvı ve gaz soğutmalı soğutma plakalarının ön boyutlandırması için ücretsiz, tarayıcı tabanlı bir araç. Plakanın 2B iletim modelini 1B kanal hidroliği, pompa eşleştirme ve kollektör akış dağılımıyla birleştirir. Tüm hesaplamalar tarayıcınızda çalışır.</p>
+<p>Eren Tozlu tarafından geliştirildi. Daha fazla mühendislik aracı ve proje: <a href="https://ehcrea.com" target="_blank" rel="noopener">ehcrea.com</a>.</p>
+<p><a href="https://github.com/ehcrea/cold-plate-calculator/blob/main/LICENSE" target="_blank" rel="noopener">MIT Lisansı</a> altında açık kaynaklıdır; kaynak kodu <a href="https://github.com/ehcrea/cold-plate-calculator" target="_blank" rel="noopener">GitHub</a> üzerindedir.</p>
+<p class="about-meta">Sonuçlar mühendislik tahminidir. Nihai tasarımları CFD veya testle doğrulayın.</p>`,
+    },
     srcnote: {
       en: 'Plate = average plate surface under the footprint. TIM ΔT = P × (t/k + contact resistance) / area. Case = plate + TIM ΔT. Junction = case + P·R<sub>jc</sub>.',
       de: 'Platte = mittlere Plattenoberfläche unter der Grundfläche. TIM ΔT = P × (t/k + Kontaktwiderstand) / Fläche. Gehäuse = Platte + TIM ΔT. Sperrschicht = Gehäuse + P·R<sub>jc</sub>.',

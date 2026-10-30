@@ -500,6 +500,16 @@
     window.addEventListener('resize', () => schedule());
     matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => schedule());
 
+    // About dialog: toolbar button, footer link and #about deep link.
+    const about = $('#about');
+    const openAbout = (e) => { if (e) e.preventDefault(); if (!about.open) about.showModal(); };
+    $('#about-open').addEventListener('click', openAbout);
+    $('#about-link').addEventListener('click', openAbout);
+    about.addEventListener('click', (e) => { if (e.target === about) about.close(); }); // backdrop click
+    about.addEventListener('close', () => { if (location.hash === '#about') history.replaceState(null, '', location.pathname + location.search); });
+    window.addEventListener('hashchange', () => { if (location.hash === '#about') openAbout(); });
+    if (location.hash === '#about') openAbout();
+
     // Light/dark toggle: starts from the system setting, then remembers the choice.
     $('#theme').addEventListener('click', () => {
       const root = document.documentElement;

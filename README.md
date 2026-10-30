@@ -104,3 +104,7 @@ icons/              favicon (SVG/PNG), iOS apple-touch-icon, PWA icons
 - ~~v2: 2D temperature map, discrete heat sources, TIM layer~~ (done)
 - Side-by-side design comparison, parameter sweeps, CSV export
 - Pin fins and turbulators
+
+## Author and license
+
+Made by Eren Tozlu, [ehcrea.com](https://ehcrea.com). Released under the [MIT License](LICENSE).
