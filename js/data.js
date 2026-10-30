@@ -264,7 +264,145 @@
   };
   const DEFAULT_PUMP = { preset: 'ev', points: PUMPS.ev.points.map((p) => p.slice()), extDp: 20e3, extQ: 10 * L_PER_MIN };
 
-  const Data = { LIQUIDS, GASES, FLUIDS, MATERIALS, PRESETS, PUMPS, DEFAULT_PUMP, TIMS, setCustomFluid, DEFAULT_CUSTOM_FLUID };
+  // ----- More application examples -----
+
+  /** Heat source with a TIM from the library: src(name, W, [x, y] m, [length, width] m, timId, Rjc K/W, limit °C, TIM thickness?). */
+  function src(name, P, [x, y], [w, h], timId, rjc, Tlimit, tim) {
+    const m = TIMS[timId];
+    return { name, P, x, y, w, h, timType: timId, tim: tim !== undefined ? tim : m.t, kTim: m.k, rcTim: m.rc, rjc, Tlimit };
+  }
+  const pumpOf = (id, extDp, extQlpm) => ({ preset: id, points: PUMPS[id].points.map((pt) => pt.slice()), extDp, extQ: extQlpm * L_PER_MIN });
+
+  Object.assign(PRESETS, {
+    obc: {
+      name: 'EV on-board charger – SiC MOSFETs, transformer and inductor',
+      state: {
+        W: 0.180, L: 0.250, t: 0.010, material: 'al6061',
+        shape: 'rect', D: 0.006, cw: 0.010, cd: 0.004, wallHeated: 0.002, roughness: 3.2e-6,
+        layout: 'serpentine', orient: 'length', count: 4, circuits: 1, margin: 0.010, header: 0.012, headerDepth: 0, portD: 0.010, mirror: false,
+        fluid: 'eg50', pIn: 2.0e5, Tin: 65,
+        flowMode: 'vol', flow: 5 * L_PER_MIN,
+        mode: 'capacity', TsMax: 90, Q: 600, heatArea: 'sources',
+        sources: [
+          src('Q1 SiC', 40, [0.045, 0.045], [0.016, 0.020], 'insulator', 0.35, 175),
+          src('Q2 SiC', 40, [0.075, 0.045], [0.016, 0.020], 'insulator', 0.35, 175),
+          src('Q3 SiC', 40, [0.045, 0.135], [0.016, 0.020], 'insulator', 0.35, 175),
+          src('Q4 SiC', 40, [0.075, 0.135], [0.016, 0.020], 'insulator', 0.35, 175),
+          src('Transformer', 80, [0.170, 0.090], [0.060, 0.050], 'gappad', 0, 130),
+          src('PFC inductor', 50, [0.215, 0.090], [0.040, 0.050], 'gappad', 0, 140),
+        ],
+      },
+    },
+    drive: {
+      name: 'Industrial drive – three IGBT modules, sized with a pump curve',
+      state: {
+        W: 0.300, L: 0.500, t: 0.020, material: 'al6063',
+        shape: 'round', D: 0.010, cw: 0.010, cd: 0.010, wallHeated: 0.004, roughness: 3.2e-6,
+        layout: 'parallelU', orient: 'length', count: 10, circuits: 1, margin: 0.015, header: 0.035, headerDepth: 0.016, portD: 0.022, mirror: false,
+        fluid: 'eg30', pIn: 2.5e5, Tin: 40,
+        flowMode: 'vol', flow: 20 * L_PER_MIN,
+        flowSource: 'pump', pump: pumpOf('industrial', 120e3, 30),
+        mode: 'capacity', TsMax: 80, Q: 6000, heatArea: 'sources',
+        sources: [
+          src('IGBT 1', 2200, [0.110, 0.150], [0.130, 0.140], 'greaseHP', 0.012, 150),
+          src('IGBT 2', 2200, [0.250, 0.150], [0.130, 0.140], 'greaseHP', 0.012, 150),
+          src('IGBT 3', 2200, [0.390, 0.150], [0.130, 0.140], 'greaseHP', 0.012, 150),
+        ],
+      },
+    },
+    gpu: {
+      name: 'Data centre – GPU / AI accelerator microchannel cold plate',
+      state: {
+        W: 0.090, L: 0.090, t: 0.008, material: 'cu101',
+        shape: 'rect', D: 0.002, cw: 0.0005, cd: 0.003, wallHeated: 0.001, roughness: 1.5e-6,
+        layout: 'parallelU', orient: 'length', count: 40, circuits: 1, margin: 0.006, header: 0.008, headerDepth: 0.004, portD: 0.008, mirror: false,
+        fluid: 'pg30', pIn: 2.0e5, Tin: 35,
+        flowMode: 'vol', flow: 1.5 * L_PER_MIN,
+        mode: 'capacity', TsMax: 70, Q: 700, heatArea: 'sources',
+        sources: [
+          src('GPU', 700, [0.045, 0.045], [0.045, 0.045], 'greaseHP', 0.03, 95),
+        ],
+      },
+    },
+    bess: {
+      name: 'Stationary storage (BESS) module – bottom cold plate',
+      state: {
+        W: 0.250, L: 0.400, t: 0.005, material: 'al3003',
+        shape: 'rect', D: 0.004, cw: 0.015, cd: 0.002, wallHeated: 0.0012, roughness: 1.5e-6,
+        layout: 'parallelU', orient: 'length', count: 8, circuits: 1, margin: 0.008, header: 0.030, headerDepth: 0.0035, portD: 0.012, mirror: false,
+        fluid: 'pg50', pIn: 1.5e5, Tin: 25,
+        flowMode: 'vol', flow: 3 * L_PER_MIN,
+        mode: 'load', TsMax: 35, Q: 240, heatArea: 'sources',
+        sources: [
+          src('Cells 1', 60, [0.105, 0.065], [0.180, 0.110], 'gappad', 0, 40),
+          src('Cells 2', 60, [0.295, 0.065], [0.180, 0.110], 'gappad', 0, 40),
+          src('Cells 3', 60, [0.105, 0.185], [0.180, 0.110], 'gappad', 0, 40),
+          src('Cells 4', 60, [0.295, 0.185], [0.180, 0.110], 'gappad', 0, 40),
+        ],
+      },
+    },
+    rf: {
+      name: 'GaN RF power amplifier – soldered transistors on copper',
+      state: {
+        W: 0.080, L: 0.120, t: 0.008, material: 'cu110',
+        shape: 'rect', D: 0.002, cw: 0.001, cd: 0.003, wallHeated: 0.001, roughness: 1.5e-6,
+        layout: 'parallelU', orient: 'length', count: 16, circuits: 1, margin: 0.008, header: 0.010, headerDepth: 0.005, portD: 0.008, mirror: false,
+        fluid: 'water', pIn: 2.0e5, Tin: 25,
+        flowMode: 'vol', flow: 3 * L_PER_MIN,
+        mode: 'capacity', TsMax: 70, Q: 300, heatArea: 'sources',
+        sources: [
+          src('PA 1', 150, [0.040, 0.040], [0.020, 0.015], 'solder', 0.6, 225),
+          src('PA 2', 150, [0.080, 0.040], [0.020, 0.015], 'solder', 0.6, 225),
+        ],
+      },
+    },
+    avionics: {
+      name: 'Avionics chassis cold wall – PAO coolant',
+      state: {
+        W: 0.200, L: 0.300, t: 0.008, material: 'al6061',
+        shape: 'rect', D: 0.004, cw: 0.010, cd: 0.003, wallHeated: 0.002, roughness: 3.2e-6,
+        layout: 'serpentine', orient: 'length', count: 6, circuits: 1, margin: 0.010, header: 0.010, headerDepth: 0, portD: 0.008, mirror: false,
+        fluid: 'pao', pIn: 3.0e5, Tin: 20,
+        flowMode: 'vol', flow: 3.5 * L_PER_MIN,
+        mode: 'capacity', TsMax: 70, Q: 320, heatArea: 'sources',
+        sources: [
+          src('Card A', 80, [0.060, 0.060], [0.060, 0.040], 'insulator', 0.15, 105),
+          src('Card B', 80, [0.150, 0.060], [0.060, 0.040], 'insulator', 0.15, 105),
+          src('Card C', 80, [0.060, 0.140], [0.060, 0.040], 'insulator', 0.15, 105),
+          src('PSU', 80, [0.150, 0.140], [0.060, 0.040], 'insulator', 0.15, 105),
+        ],
+      },
+    },
+    aircooled: {
+      name: 'Fuel-cell DC/DC – air-cooled plate with blower',
+      state: {
+        W: 0.150, L: 0.200, t: 0.016, material: 'al6063',
+        shape: 'rect', D: 0.006, cw: 0.006, cd: 0.010, wallHeated: 0.003, roughness: 3.2e-6,
+        layout: 'parallelU', orient: 'length', count: 10, circuits: 1, margin: 0.008, header: 0.025, headerDepth: 0.013, portD: 0.030, mirror: false,
+        fluid: 'air', pIn: 1.013e5, Tin: 30,
+        flowMode: 'vol', flow: 600 * L_PER_MIN,
+        flowSource: 'pump', pump: pumpOf('blower', 0.5e3, 500),
+        mode: 'capacity', TsMax: 85, Q: 200, heatArea: 'sources',
+        sources: [
+          src('Boost stage', 60, [0.070, 0.075], [0.050, 0.050], 'insulator', 0.2, 150),
+          src('Diodes', 40, [0.140, 0.075], [0.040, 0.040], 'insulator', 0.3, 150),
+        ],
+      },
+    },
+  });
+
+  // Groups for the preset picker.
+  const PRESET_GROUPS = {
+    inverter: 'Power electronics', obc: 'Power electronics', drive: 'Power electronics',
+    gpu: 'Data centre & computing',
+    battery: 'Battery & energy storage', bess: 'Battery & energy storage',
+    fuelcell: 'Fuel cell & hydrogen', hydrogen: 'Fuel cell & hydrogen', aircooled: 'Fuel cell & hydrogen',
+    copper: 'RF, lasers & high flux', rf: 'RF, lasers & high flux',
+    avionics: 'Aerospace & defence',
+  };
+  for (const [id, gr] of Object.entries(PRESET_GROUPS)) PRESETS[id].group = gr;
+
+  const Data = { LIQUIDS, GASES, FLUIDS, MATERIALS, PRESETS, PRESET_GROUPS, PUMPS, DEFAULT_PUMP, TIMS, setCustomFluid, DEFAULT_CUSTOM_FLUID };
   if (typeof module !== 'undefined' && module.exports) module.exports = Data;
   else root.CPData = Data;
 })(typeof window !== 'undefined' ? window : globalThis);

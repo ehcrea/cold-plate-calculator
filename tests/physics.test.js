@@ -222,6 +222,8 @@ check('every dictionary row has English, German, Dutch and Turkish with matching
 check('all data names (presets, materials, fluids, pumps, TIMs) are translated', () => {
   const miss = [];
   for (const col of [D.PRESETS, D.MATERIALS, D.FLUIDS, D.PUMPS, D.TIMS]) for (const v of Object.values(col)) if (!KEYS.has(v.name)) miss.push(v.name);
+  for (const g of new Set(Object.values(D.PRESET_GROUPS))) if (!KEYS.has(g)) miss.push(g);
+  for (const [id, p] of Object.entries(D.PRESETS)) if (!p.group) miss.push('group of ' + id);
   assert.deepStrictEqual(miss, []);
 });
 check('every literal t(...) key and solver message template is translated', () => {

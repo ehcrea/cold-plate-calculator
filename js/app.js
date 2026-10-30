@@ -29,9 +29,20 @@
 
   /** Fill the data-driven selects (re-run when the language changes). */
   function populateSelects() {
+    // Presets grouped by application area, in the order the groups are listed in the data.
     const preset = $('#preset');
-    while (preset.options.length > 1) preset.remove(1);
-    for (const [id, p] of Object.entries(PRESETS)) preset.add(new Option(t(p.name), id));
+    while (preset.children.length > 1) preset.removeChild(preset.lastChild);
+    const byGroup = new Map([...new Set(Object.values(CPData.PRESET_GROUPS))].map((g) => [g, []]));
+    for (const [id, p] of Object.entries(PRESETS)) {
+      if (!byGroup.has(p.group)) byGroup.set(p.group, []);
+      byGroup.get(p.group).push([id, p]);
+    }
+    for (const [group, items] of byGroup) {
+      const og = document.createElement('optgroup');
+      og.label = t(group);
+      for (const [id, p] of items) og.appendChild(new Option(t(p.name), id));
+      preset.appendChild(og);
+    }
 
     const mat = $('#material');
     mat.textContent = '';

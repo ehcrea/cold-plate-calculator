@@ -29,7 +29,16 @@ Available in **English, German, Dutch and Turkish**: the interface, design check
 | Coolant | Water (DI), ethylene glycol 30/50 %, propylene glycol 30/50 %. Dielectric fluids and oils: PAO, mineral oil, silicone oil, PFPE, HFE. Gases: clean dry air, N₂, H₂, He, CO₂. A custom liquid with your own properties. Inlet temperature and pressure. Flow as volume, mass or standard flow (SLPM/SCFM), or from a pump curve (generic pump and blower presets, or your own points) plus a rest-of-loop pressure drop that scales with flow² |
 | Heat input | Discrete heat sources (power, position, footprint, R<sub>jc</sub>, temperature limit, and a thermal interface material chosen from a library: greases, phase-change, graphite, adhesive, insulating pad, gap pad and filler, solder, or custom, each with thickness, conductivity and contact resistance), or uniform heat over the whole face or the channel area, with find max. heat or find surface temperature |
 
-Application presets: inverter/IGBT plate, EV battery cold plate, fuel-cell cooling plate, hydrogen gas-cooled plate, high-flux copper plate.
+12 application examples, grouped by industry:
+
+| Group | Examples |
+|---|---|
+| Power electronics | Inverter / IGBT cold plate · EV on-board charger (SiC MOSFETs, transformer, inductor) · Industrial drive with three IGBT modules, sized with a pump curve |
+| Data centre & computing | GPU / AI accelerator copper microchannel plate |
+| Battery & energy storage | EV battery module (brazed) · Stationary storage (BESS) module |
+| Fuel cell & hydrogen | Fuel-cell stack / DC-DC plate · Hydrogen gas-cooled plate · Air-cooled DC/DC plate with blower curve |
+| RF, lasers & high flux | High-flux copper plate · GaN RF power amplifier (soldered transistors) |
+| Aerospace & defence | Avionics chassis cold wall with PAO coolant |
 
 ## Run it
 
