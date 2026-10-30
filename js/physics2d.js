@@ -65,41 +65,41 @@
   /** Overlap length of [a0,a1] and [b0,b1]. */
   const overlap = (a0, a1, b0, b1) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
 
-  /** Heat input per cell [W] for the chosen heat distribution. */
-  function heatInput(s, g, grid, Qtotal) {
+  /**
+   * Heat inputs as "parts": each heat source (or the uniform heat) with the plate cells it covers
+   * and the fraction of its heat that enters each cell. Sources carry their TIM resistance R,
+   * junction-to-case resistance and optional heat capacity C (component thermal mass).
+   */
+  function heatParts(s, grid, Qtotal) {
     const { nx, ny, dx, dy } = grid;
-    const q = new Float64Array(nx * ny);
-    const addRect = (x0, x1, y0, y1, P) => {
-      const A = (x1 - x0) * (y1 - y0);
-      if (!(A > 0)) return 0;
-      let placed = 0;
+    const rect = (x0, x1, y0, y1) => {
+      const idx = [], w = [];
+      let A = 0;
       for (let j = Math.max(0, Math.floor(y0 / dy)); j < Math.min(ny, Math.ceil(y1 / dy)); j++) {
         const oy = overlap(y0, y1, j * dy, (j + 1) * dy);
         for (let i = Math.max(0, Math.floor(x0 / dx)); i < Math.min(nx, Math.ceil(x1 / dx)); i++) {
           const a = overlap(x0, x1, i * dx, (i + 1) * dx) * oy;
-          q[j * nx + i] += P * a / A;
-          placed += a;
+          if (a <= 0) continue;
+          idx.push(j * nx + i); w.push(a); A += a;
         }
       }
-      return placed / A;
+      return { idx, w: w.map((a) => a / A), A };
     };
-    const coverage = [];
     if (s.heatArea === 'sources') {
-      for (const src of s.sources || []) {
+      return (s.sources || []).map((src) => {
         const x0 = src.x - src.w / 2, y0 = src.y - src.h / 2;
-        // Clip to the plate; power is scaled to the part that sits on the plate.
+        // Clip to the plate; the whole power enters through the part that sits on it.
         const cx0 = Math.max(0, x0), cx1 = Math.min(s.L, x0 + src.w), cy0 = Math.max(0, y0), cy1 = Math.min(s.W, y0 + src.h);
-        const frac = Math.max(0, cx1 - cx0) * Math.max(0, cy1 - cy0) / (src.w * src.h);
-        addRect(cx0, cx1, cy0, cy1, src.P);
-        coverage.push(frac);
-      }
-    } else if (s.heatArea === 'channels') {
-      const m = s.margin;
-      addRect(m, s.L - m, m, s.W - m, Qtotal);
-    } else {
-      addRect(0, s.L, 0, s.W, Qtotal);
+        const part = cx1 > cx0 && cy1 > cy0 ? rect(cx0, cx1, cy0, cy1) : { idx: [], w: [], A: 0 };
+        const area = src.w * src.h;
+        // TIM: bulk conduction t/k plus contact resistance at both faces, per unit area.
+        const R = ((src.tim > 0 && src.kTim > 0 ? src.tim / src.kTim : 0) + (src.rcTim || 0)) / area;
+        return Object.assign(part, { P: src.P, R, C: Math.max(0, src.cth || 0), coverage: part.A / area, src });
+      });
     }
-    return { q, coverage };
+    const m = s.margin;
+    const part = s.heatArea === 'channels' ? rect(m, s.L - m, m, s.W - m) : rect(0, s.L, 0, s.W);
+    return [Object.assign(part, { P: Qtotal, R: 0, C: 0, coverage: 1, src: null })];
   }
 
   /** Jacobi-preconditioned conjugate gradient for the plate conduction system. */
@@ -141,11 +141,10 @@
   }
 
   /**
-   * Solve the 2D plate. `base` is the 1D result (Physics.solve) for the same
+   * Build the 2D plate model. `base` is the 1D result (Physics.solve) for the same
    * state; it supplies h, wetted perimeter, mass flow and fluid properties.
    */
-  function solve2D(s, base, opts = {}) {
-    if (!base || !base.ok) return null;
+  function buildModel(s, base, opts = {}) {
     const g = base.geometry;
     const maxCells = opts.maxCells || 6000;
     const d = Math.max(Math.sqrt(s.L * s.W / maxCells), 0.0005);
@@ -245,32 +244,94 @@
     }
     for (const nd of nodes) for (const k of nd.cells) diag[k] += nd.G;
     for (const hdr of headers) hdr.cells.forEach((k, i) => { diag[k] += hdr.g[i]; });
-    const hdrHeat = (hdr, Tfl) => hdr.cells.reduce((a, k, i) => a + hdr.g[i] * (T[k] - Tfl), 0);
 
-    const { q, coverage } = heatInput(s, g, grid, Qtotal);
-    const Qin = q.reduce((a, v) => a + v, 0);
-
-    // Alternate plate solve and coolant march.
-    const T = new Float64Array(n).fill(s.Tin);
-    const Tf = new Float64Array(nodes.length).fill(s.Tin);
+    const parts = heatParts(s, grid, Qtotal);
     nodes.forEach((nd, i) => { nd.idx = i; });
+    const mat = Data.MATERIALS[s.material];
+    const rhoS = s.material === 'custom' ? s.rhoCustom : mat.rho;
+    const cpS = s.material === 'custom' ? (s.cpCustom || mat.cp) : mat.cp;
+    const Ccell = new Float64Array(n);
+    for (let k = 0; k < n; k++) Ccell[k] = rhoS * cpS * tcell[k] * dx * dy;
+    let diagDt = null, lastDt = null;
+    return {
+      s, base, g, grid, n, nx, ny, dx, dy, ks, cp, Qtotal, paths, pathNodes, nodes, headers, parts, tcell, Ccell,
+      diag, gE, gN, Ctot: base.mdot * cp,
+      /** System diagonal including the heat capacity term C/dt (cached per time step). */
+      diagFor(dt) {
+        if (!isFinite(dt)) return diag;
+        if (dt !== lastDt) { diagDt = new Float64Array(n); for (let k = 0; k < n; k++) diagDt[k] = diag[k] + Ccell[k] / dt; lastDt = dt; }
+        return diagDt;
+      },
+    };
+  }
+
+  /** Fresh model state at the coolant inlet temperature. */
+  function initState(M) {
+    const Tin = M.s.Tin, np = M.parts.length;
+    return {
+      T: new Float64Array(M.n).fill(Tin), Tf: new Float64Array(M.nodes.length).fill(Tin),
+      Ts: new Float64Array(np).fill(Tin), Qs: new Float64Array(np), Tbar: new Float64Array(np).fill(Tin), slope: new Float64Array(np),
+      TinCh: Tin, Tmix: Tin, ToutAll: Tin, outer: 0, cgIts: 0,
+    };
+  }
+
+  /**
+   * Solve the plate and coolant for heat factor f (multiplies every heat input).
+   * dt = Infinity: steady state. Finite dt: one backward-Euler step from `prev`
+   * (plate heat capacity per cell, component heat capacity per source; the
+   * coolant is quasi-steady because it passes through the plate quickly).
+   */
+  function relax(M, st, f, dt, prev) {
+    const { s, n, nodes, pathNodes, paths, headers, parts, Ccell, Ctot, cp, base } = M;
+    const trans = isFinite(dt);
+    const A = { diag: M.diagFor(dt), gE: M.gE, gN: M.gN };
     const b = new Float64Array(n);
-    const Ctot = base.mdot * cp;
-    let outer = 0, cgIts = 0, TinCh = s.Tin, Tmix = s.Tin, ToutAll = s.Tin;
-    for (; outer < 80; outer++) {
-      b.set(q);
+    const T = st.T, Tf = st.Tf;
+    const hdrHeat = (hdr, Tfl) => hdr.cells.reduce((a, k, i) => a + hdr.g[i] * (T[k] - Tfl), 0);
+    const Qmeas = new Float64Array(parts.length), Tmeas = new Float64Array(parts.length);
+    let outer = 0;
+    for (; outer < 120; outer++) {
+      // Heat each part delivers to the plate. A component with heat capacity C stores part of its power:
+      // C (Ts − Ts,old)/dt = P − Qs and Qs = (Ts − T̄)/R, where T̄ is the mean plate temperature under it.
+      let dQ = 0;
+      parts.forEach((p, i) => {
+        let Tbar = 0;
+        for (let j = 0; j < p.idx.length; j++) Tbar += p.w[j] * T[p.idx[j]];
+        const P = f * p.P;
+        let Qs = P;
+        if (trans && p.C > 0) {
+          // T̄ responds to Qs; use the slope measured between iterations (secant) for a Newton-like update.
+          if (outer > 0 && Math.abs(st.Qs[i] - Qmeas[i]) > 1e-9 * (Math.abs(P) + 1)) {
+            const sl = (Tbar - Tmeas[i]) / (st.Qs[i] - Qmeas[i]);
+            if (sl > 0 && isFinite(sl)) st.slope[i] = sl;
+          } else if (outer === 0 && !(st.slope[i] > 0)) {
+            let Cf = 0;
+            for (const k of p.idx) Cf += Ccell[k];
+            st.slope[i] = dt / Math.max(Cf, 1e-9);
+          }
+          Qmeas[i] = st.Qs[i]; Tmeas[i] = Tbar;
+          const sl = st.slope[i], a = p.C / dt;
+          Qs = (a * (prev.Ts[i] - Tbar + sl * st.Qs[i]) + P) / (1 + a * p.R + a * sl);
+        }
+        dQ = Math.max(dQ, Math.abs(Qs - st.Qs[i]) / (Math.abs(P) + 1e-9));
+        st.Qs[i] = Qs; st.Tbar[i] = Tbar;
+        st.Ts[i] = Tbar + Qs * p.R;
+      });
+      b.fill(0);
+      parts.forEach((p, i) => { for (let j = 0; j < p.idx.length; j++) b[p.idx[j]] += st.Qs[i] * p.w[j]; });
       for (const nd of nodes) for (const k of nd.cells) b[k] += nd.G * Tf[nd.idx];
       if (headers.length) {
         headers[0].cells.forEach((k, i) => { b[k] += headers[0].g[i] * s.Tin; });
-        headers[1].cells.forEach((k, i) => { b[k] += headers[1].g[i] * Tmix; });
+        headers[1].cells.forEach((k, i) => { b[k] += headers[1].g[i] * st.Tmix; });
       }
-      cgIts += cg(grid, { diag, gE, gN }, b, T, 1e-8, 4000);
+      if (trans) for (let k = 0; k < n; k++) b[k] += Ccell[k] / dt * prev.T[k];
+      st.cgIts += cg(M.grid, A, b, T, 1e-8, 4000);
       let change = 0;
       // Heat picked up in the inlet header warms the coolant before it enters the channels.
-      if (headers.length) TinCh = s.Tin + hdrHeat(headers[0], s.Tin) / Ctot;
+      if (headers.length) st.TinCh = s.Tin + hdrHeat(headers[0], s.Tin) / Ctot;
       pathNodes.forEach((pn, pi) => {
         const C = base.mdot * paths[pi].share * cp;
-        let tf = TinCh;
+        let tf = st.TinCh;
         for (const nd of pn) {
           let Qn = 0;
           for (const k of nd.cells) Qn += nd.G * (T[k] - tf);
@@ -281,13 +342,33 @@
         paths[pi].Tout = tf;
       });
       const TmixNew = paths.reduce((a, p) => a + p.share * p.Tout, 0);
-      change = Math.max(change, Math.abs(TmixNew - Tmix));
-      Tmix = TmixNew;
-      ToutAll = headers.length ? Tmix + hdrHeat(headers[1], Tmix) / Ctot : Tmix;
-      if (change < 1e-5 && outer > 0) break;
+      change = Math.max(change, Math.abs(TmixNew - st.Tmix));
+      st.Tmix = TmixNew;
+      st.ToutAll = headers.length ? st.Tmix + hdrHeat(headers[1], st.Tmix) / Ctot : st.Tmix;
+      if (change < 1e-5 && dQ < 1e-6 && outer > 0) break;
     }
+    st.outer += outer;
+    return st;
+  }
 
-    // Results.
+  /** Steady 2D solution (see buildModel). */
+  function solve2D(s, base, opts = {}) {
+    if (!base || !base.ok) return null;
+    const M = buildModel(s, base, opts);
+    const st = relax(M, initState(M), 1, Infinity);
+    return results(M, st);
+  }
+
+  /** Temperatures, component results and energy balance of a solved state. */
+  function results(M, st, f = 1) {
+    const { s, grid, n, nx, ny, dx, dy, paths, parts, Ctot } = M;
+    const T = st.T;
+    const Qtotal = f * M.Qtotal;
+    const Qin = st.Qs.reduce((a, v) => a + v, 0);
+    const outer = st.outer, cgIts = st.cgIts;
+    const sources = s.heatArea === 'sources' ? (s.sources || []) : [];
+    const coverage = parts.map((p) => p.coverage);
+    const ToutAll = st.ToutAll;
     let Tmax = -Infinity, Tmin = Infinity, imax = 0;
     for (let k = 0; k < n; k++) { if (T[k] > Tmax) { Tmax = T[k]; imax = k; } if (T[k] < Tmin) Tmin = T[k]; }
     const Tout = ToutAll;
@@ -306,13 +387,12 @@
           sumA += a; sumT += a * t; tmax = Math.max(tmax, t);
         }
       }
-      const area = src.w * src.h;
       const Tplate = sumA > 0 ? sumT / sumA : NaN;
-      // TIM: bulk conduction t/k plus contact resistance at both faces, per unit area.
-      const Rtim = ((src.tim > 0 && src.kTim > 0 ? src.tim / src.kTim : 0) + (src.rcTim || 0)) / area;
-      const Tcase = Tplate + src.P * Rtim;
-      const Tj = Tcase + src.P * (src.rjc || 0);
-      return { name: src.name, P: src.P, Tplate, TplateMax: tmax, Rtim, dTtim: src.P * Rtim, Tcase, Tj, limit: src.Tlimit, margin: src.Tlimit - Tj, onPlate: coverage[si] };
+      // Heat through the TIM: the full power in steady state, less while a component's own mass is heating up.
+      const P = f * src.P, Qs = st.Qs[si], Rtim = parts[si].R;
+      const Tcase = Tplate + Qs * Rtim;
+      const Tj = Tcase + P * (src.rjc || 0);
+      return { name: src.name, P, Tplate, TplateMax: tmax, Rtim, dTtim: Qs * Rtim, Tcase, Tj, limit: src.Tlimit, margin: src.Tlimit - Tj, onPlate: coverage[si] };
     });
 
     // Linear in heat (properties fixed): factor by which all sources can be scaled before the first hits its limit.
@@ -322,6 +402,87 @@
     }
 
     return { grid, T, Tmin, Tmax, hottest, Qin, QtoFluid, Tout, sources: srcRes, headroom, outer, cgIts, paths, Qtotal };
+  }
+
+  /** n time steps over dur, growing geometrically from dur·first (resolves fast and slow responses). */
+  function stepSizes(dur, n, first) {
+    if (!(dur > 0)) return [];
+    const dt0 = dur * first;
+    if (dt0 * n >= dur) return new Array(n).fill(dur / n);
+    let lo = 1, hi = 10;
+    for (let i = 0; i < 60; i++) { const r = (lo + hi) / 2; if (dt0 * (Math.pow(r, n) - 1) / (r - 1) > dur) hi = r; else lo = r; }
+    const r = (lo + hi) / 2, out = [];
+    let sum = 0;
+    for (let i = 0; i < n; i++) { const d = i === n - 1 ? dur - sum : dt0 * Math.pow(r, i); out.push(d); sum += d; }
+    return out;
+  }
+
+  /** Plate and source temperatures of a state, for the transient record. */
+  function snapshot(M, st, f) {
+    const T = st.T, n = M.n;
+    let Tmax = -Infinity;
+    for (let k = 0; k < n; k++) if (T[k] > Tmax) Tmax = T[k];
+    const src = M.parts.map((p, i) => {
+      let Tbar = 0;
+      for (let j = 0; j < p.idx.length; j++) Tbar += p.w[j] * T[p.idx[j]];
+      const Tcase = Tbar + st.Qs[i] * p.R;
+      return p.src ? Tcase + f * p.P * (p.src.rjc || 0) : Tcase;
+    });
+    // Stored heat (relative to 0 °C) and heat flows, for the energy balance.
+    let E = 0;
+    for (let k = 0; k < n; k++) E += M.Ccell[k] * T[k];
+    M.parts.forEach((p, i) => { E += p.C * st.Ts[i]; });
+    const Pin = f * M.parts.reduce((a, p) => a + p.P, 0), Pout = M.Ctot * (st.ToutAll - M.s.Tin);
+    return { Tmax, Tout: st.ToutAll, src, Q: st.Qs.reduce((a, v) => a + v, 0), E, Pin, Pout };
+  }
+
+  /**
+   * Transient response to a load profile (generator: yields progress, returns the history).
+   * profile: { f0, segments: [{ dur, f, n, first }] } — heat factors multiply the design heat load;
+   * the plate starts in steady state at f0 (0 = at the coolant temperature).
+   */
+  function* transient(s, base, profile, opts = {}) {
+    const M = buildModel(s, base, opts);
+    const st = initState(M);
+    if (profile.f0 > 0) relax(M, st, profile.f0, Infinity);
+    const hist = { t: [0], f: [profile.f0], Tmax: [], Tout: [], src: M.parts.map(() => []), Q: [], E: [], Pin: [], Pout: [] };
+    const rec = (f) => {
+      const sn = snapshot(M, st, f);
+      hist.Tmax.push(sn.Tmax); hist.Tout.push(sn.Tout); hist.Q.push(sn.Q); hist.E.push(sn.E); hist.Pin.push(sn.Pin); hist.Pout.push(sn.Pout);
+      sn.src.forEach((v, i) => hist.src[i].push(v));
+    };
+    rec(profile.f0);
+    const total = profile.segments.reduce((a, g) => a + g.n, 0);
+    let t = 0, done = 0;
+    for (const seg of profile.segments) {
+      for (const dt of stepSizes(seg.dur, seg.n, seg.first)) {
+        const prev = { T: st.T.slice(), Ts: st.Ts.slice() };
+        relax(M, st, seg.f, dt, prev);
+        t += dt;
+        hist.t.push(t); hist.f.push(seg.f);
+        rec(seg.f);
+        done++;
+        yield { done, total };
+      }
+    }
+    // Heat capacities for reporting: plate (solid) and components.
+    hist.Cplate = M.Ccell.reduce((a, v) => a + v, 0);
+    hist.Csrc = M.parts.map((p) => p.C);
+    hist.grid = M.grid;
+    // Steady state at each distinct factor (what a sustained load would reach).
+    hist.steady = {};
+    for (const f of new Set([profile.f0, ...profile.segments.map((g) => g.f)])) {
+      const s2 = initState(M);
+      relax(M, s2, f, Infinity);
+      hist.steady[f] = snapshot(M, s2, f);
+    }
+    return hist;
+  }
+
+  /** Run a transient to completion (Node and tests). */
+  function runTransient(s, base, profile, opts) {
+    const g = transient(s, base, profile, opts);
+    for (;;) { const r = g.next(); if (r.done) return r.value; }
   }
 
   /**
@@ -356,7 +517,7 @@
     return { base, map };
   }
 
-  const Physics2D = { channelPaths, solve2D, evaluate };
+  const Physics2D = { channelPaths, solve2D, evaluate, buildModel, initState, relax, results, stepSizes, transient, runTransient };
   if (isNode) module.exports = Physics2D;
   else root.Physics2D = Physics2D;
 })(typeof window !== 'undefined' ? window : globalThis);

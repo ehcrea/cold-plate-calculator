@@ -316,6 +316,62 @@ check('a pressure-drop limit that conflicts with the thermal target is reported'
   assert.strictEqual(r.status, 'none'); assert.strictEqual(r.thermalReachable, true);
 });
 
+console.log('Transient');
+const P2t = require('../js/physics2d.js');
+const TR = require('../js/transient.js');
+const loadState = (s, Q) => Object.assign({}, s, { mode: 'load', Q });
+const designQ = (s) => (s.heatArea === 'sources' ? s.sources.reduce((a, x) => a + x.P, 0) : 3000);
+check('time steps grow geometrically and add up to the duration', () => {
+  const d = P2t.stepSizes(60, 40, 1e-3);
+  near(d.reduce((a, v) => a + v, 0), 60, 1e-9); near(d[0], 0.06, 1e-9);
+  for (let i = 1; i < d.length - 1; i++) assert.ok(d[i] > d[i - 1]);
+});
+check('energy is conserved: heat in − heat out = heat stored (all presets)', () => {
+  for (const [id, p] of Object.entries(D.PRESETS)) {
+    const s = loadState(P.effectiveState(p.state, {}).s, designQ(p.state));
+    const base = P.solve(s, {});
+    const h = P2t.runTransient(s, base, { f0: 0.5, segments: [{ dur: 30, f: 1.5, n: 30, first: 1e-3 }, { dur: 30, f: 0.2, n: 30, first: 1e-3 }] }, { maxCells: 1200 });
+    let net = 0;
+    for (let i = 1; i < h.t.length; i++) net += (h.t[i] - h.t[i - 1]) * (h.Pin[i] - h.Pout[i]);
+    const dE = h.E[h.E.length - 1] - h.E[0];
+    near(net / dE, 1, 1e-4, id);
+  }
+});
+check('a long step settles at the steady 2D solution', () => {
+  const s = loadState(D.PRESETS.inverter.state, designQ(D.PRESETS.inverter.state));
+  const base = P.solve(s, {});
+  const h = P2t.runTransient(s, base, { f0: 1, segments: [{ dur: 600, f: 1.5, n: 80, first: 1e-4 }] }, { maxCells: 1200 });
+  h.src.forEach((y, i) => near(y[y.length - 1], h.steady[1.5].src[i], 0.05, 'source ' + i));
+  // Steady start equals the steady model at factor 1.
+  h.src.forEach((y, i) => near(y[0], h.steady[1].src[i], 1e-6));
+});
+check('nearly isothermal plate follows the lumped first-order response (63 % at t = RC)', () => {
+  const s = loadState(Object.assign({}, D.PRESETS.fuelcell.state, { heatArea: 'full', material: 'custom', kCustom: 2e5, rhoCustom: 2700, cpCustom: 900 }), 2000);
+  const base = P.solve(s, {});
+  const probe = P2t.runTransient(s, base, { f0: 0, segments: [{ dur: 1, f: 0, n: 1, first: 1 }] }, { maxCells: 1200 });
+  const st = P2t.runTransient(s, base, { f0: 1, segments: [{ dur: 1, f: 1, n: 1, first: 1 }] }, { maxCells: 1200 });
+  const rise = st.Tmax[0] - s.Tin;
+  const tau = probe.Cplate * rise / 2000;
+  const h = P2t.runTransient(s, base, { f0: 0, segments: [{ dur: tau, f: 1, n: 200, first: 1e-3 }] }, { maxCells: 1200 });
+  near((h.Tmax[h.Tmax.length - 1] - s.Tin) / rise, 1 - Math.exp(-1), 0.02);
+});
+check('component heat capacity slows the junction rise and the steady state is unchanged', () => {
+  const s0 = loadState(D.PRESETS.battery.state, designQ(D.PRESETS.battery.state));
+  const noMass = Object.assign({}, s0, { sources: s0.sources.map((x) => Object.assign({}, x, { cth: 0 })) });
+  const prof = { f0: 0, segments: [{ dur: 120, f: 1, n: 60, first: 1e-3 }] };
+  const a = P2t.runTransient(s0, P.solve(s0, {}), prof, { maxCells: 1200 });
+  const b = P2t.runTransient(noMass, P.solve(noMass, {}), prof, { maxCells: 1200 });
+  assert.ok(a.src[0][a.t.length - 1] < b.src[0][b.t.length - 1] - 0.5);
+  near(a.steady[1].src[0], b.steady[1].src[0], 1e-9);
+});
+check('limit crossing time and pulse profile', () => {
+  near(TR.crossing([0, 1, 2], [10, 20, 30], 25), 1.5, 1e-12);
+  assert.strictEqual(TR.crossing([0, 1], [10, 20], 50), null);
+  const pr = TR.buildProfile({ kind: 'pulse', pf0: 1, pf1: 3, per: 2, duty: 25, cyc: 5 });
+  assert.strictEqual(pr.segments.length, 10);
+  near(pr.segments[0].dur, 0.5, 1e-12); near(pr.segments[1].dur, 1.5, 1e-12);
+});
+
 console.log('Translations');
 const I18N = require('../js/i18n.js');
 const fs = require('fs');
@@ -339,7 +395,7 @@ check('all data names (presets, materials, fluids, pumps, TIMs) are translated',
 check('every literal t(...) key and solver message template is translated', () => {
   const miss = new Set();
   const need = (k) => { if (k && !KEYS.has(k)) miss.add(k); };
-  for (const f of ['app.js', 'report.js', 'drawing.js', 'charts.js', 'study.js']) {
+  for (const f of ['app.js', 'report.js', 'drawing.js', 'charts.js', 'study.js', 'transient.js']) {
     const src = fs.readFileSync(path.join(__dirname, '../js', f), 'utf8');
     for (const m of src.matchAll(/\bt\('((?:[^'\\]|\\.)*)'/g)) need(m[1].replace(/\\'/g, "'"));
   }

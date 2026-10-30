@@ -163,16 +163,16 @@
 
   // Plate materials: k W/m·K, rho kg/m³, max recommended coolant velocity m/s (erosion guide).
   const MATERIALS = {
-    al6061: { name: 'Aluminium 6061-T6', k: 167, rho: 2700, vmax: 2.5, family: 'al' },
-    al6063: { name: 'Aluminium 6063-T5 (extrusion)', k: 209, rho: 2700, vmax: 2.5, family: 'al' },
-    al3003: { name: 'Aluminium 3003 (brazed)', k: 193, rho: 2730, vmax: 2.5, family: 'al' },
-    al1100: { name: 'Aluminium 1100', k: 222, rho: 2710, vmax: 2.5, family: 'al' },
-    cu110: { name: 'Copper C110 (ETP)', k: 388, rho: 8940, vmax: 2.0, family: 'cu' },
-    cu101: { name: 'Copper C101 (OFE)', k: 391, rho: 8940, vmax: 2.0, family: 'cu' },
-    ss304: { name: 'Stainless steel 304', k: 16.2, rho: 8000, vmax: 6.0, family: 'ss' },
-    ss316: { name: 'Stainless steel 316L', k: 16.3, rho: 8000, vmax: 6.0, family: 'ss' },
-    ti2: { name: 'Titanium Grade 2', k: 16.4, rho: 4510, vmax: 6.0, family: 'ti' },
-    custom: { name: 'Custom…', k: 150, rho: 2700, vmax: 3.0, family: 'custom' },
+    al6061: { name: 'Aluminium 6061-T6', k: 167, rho: 2700, cp: 896, vmax: 2.5, family: 'al' },
+    al6063: { name: 'Aluminium 6063-T5 (extrusion)', k: 209, rho: 2700, cp: 900, vmax: 2.5, family: 'al' },
+    al3003: { name: 'Aluminium 3003 (brazed)', k: 193, rho: 2730, cp: 893, vmax: 2.5, family: 'al' },
+    al1100: { name: 'Aluminium 1100', k: 222, rho: 2710, cp: 904, vmax: 2.5, family: 'al' },
+    cu110: { name: 'Copper C110 (ETP)', k: 388, rho: 8940, cp: 385, vmax: 2.0, family: 'cu' },
+    cu101: { name: 'Copper C101 (OFE)', k: 391, rho: 8940, cp: 385, vmax: 2.0, family: 'cu' },
+    ss304: { name: 'Stainless steel 304', k: 16.2, rho: 8000, cp: 500, vmax: 6.0, family: 'ss' },
+    ss316: { name: 'Stainless steel 316L', k: 16.3, rho: 8000, cp: 500, vmax: 6.0, family: 'ss' },
+    ti2: { name: 'Titanium Grade 2', k: 16.4, rho: 4510, cp: 523, vmax: 6.0, family: 'ti' },
+    custom: { name: 'Custom…', k: 150, rho: 2700, cp: 900, vmax: 3.0, family: 'custom' },
   };
 
   const L_PER_MIN = 1e-3 / 60;
@@ -189,9 +189,9 @@
         flowMode: 'vol', flow: 8 * L_PER_MIN,
         mode: 'capacity', TsMax: 75, Q: 2000, heatArea: 'sources',
         sources: [
-          { name: 'Phase U', P: 600, x: 0.065, y: 0.1, w: 0.05, h: 0.09, timType: 'grease', tim: 50e-6, kTim: 1.0, rcTim: 5e-6, rjc: 0.06, Tlimit: 150 },
-          { name: 'Phase V', P: 600, x: 0.15, y: 0.1, w: 0.05, h: 0.09, timType: 'grease', tim: 50e-6, kTim: 1.0, rcTim: 5e-6, rjc: 0.06, Tlimit: 150 },
-          { name: 'Phase W', P: 600, x: 0.235, y: 0.1, w: 0.05, h: 0.09, timType: 'grease', tim: 50e-6, kTim: 1.0, rcTim: 5e-6, rjc: 0.06, Tlimit: 150 },
+          { name: 'Phase U', P: 600, x: 0.065, y: 0.1, w: 0.05, h: 0.09, timType: 'grease', tim: 50e-6, kTim: 1.0, rcTim: 5e-6, rjc: 0.06, Tlimit: 150, cth: 120 },
+          { name: 'Phase V', P: 600, x: 0.15, y: 0.1, w: 0.05, h: 0.09, timType: 'grease', tim: 50e-6, kTim: 1.0, rcTim: 5e-6, rjc: 0.06, Tlimit: 150, cth: 120 },
+          { name: 'Phase W', P: 600, x: 0.235, y: 0.1, w: 0.05, h: 0.09, timType: 'grease', tim: 50e-6, kTim: 1.0, rcTim: 5e-6, rjc: 0.06, Tlimit: 150, cth: 120 },
         ],
       },
     },
@@ -205,12 +205,12 @@
         flowMode: 'vol', flow: 5 * L_PER_MIN,
         mode: 'load', TsMax: 35, Q: 800, heatArea: 'sources',
         sources: [
-          { name: 'Module 1', P: 130, x: 0.11, y: 0.08, w: 0.17, h: 0.12, timType: 'gappad', tim: 0.001, kTim: 3, rcTim: 20e-6, rjc: 0, Tlimit: 45 },
-          { name: 'Module 2', P: 130, x: 0.3, y: 0.08, w: 0.17, h: 0.12, timType: 'gappad', tim: 0.001, kTim: 3, rcTim: 20e-6, rjc: 0, Tlimit: 45 },
-          { name: 'Module 3', P: 130, x: 0.49, y: 0.08, w: 0.17, h: 0.12, timType: 'gappad', tim: 0.001, kTim: 3, rcTim: 20e-6, rjc: 0, Tlimit: 45 },
-          { name: 'Module 4', P: 130, x: 0.11, y: 0.22, w: 0.17, h: 0.12, timType: 'gappad', tim: 0.001, kTim: 3, rcTim: 20e-6, rjc: 0, Tlimit: 45 },
-          { name: 'Module 5', P: 130, x: 0.3, y: 0.22, w: 0.17, h: 0.12, timType: 'gappad', tim: 0.001, kTim: 3, rcTim: 20e-6, rjc: 0, Tlimit: 45 },
-          { name: 'Module 6', P: 130, x: 0.49, y: 0.22, w: 0.17, h: 0.12, timType: 'gappad', tim: 0.001, kTim: 3, rcTim: 20e-6, rjc: 0, Tlimit: 45 },
+          { name: 'Module 1', P: 130, x: 0.11, y: 0.08, w: 0.17, h: 0.12, timType: 'gappad', tim: 0.001, kTim: 3, rcTim: 20e-6, rjc: 0, Tlimit: 45, cth: 3500 },
+          { name: 'Module 2', P: 130, x: 0.3, y: 0.08, w: 0.17, h: 0.12, timType: 'gappad', tim: 0.001, kTim: 3, rcTim: 20e-6, rjc: 0, Tlimit: 45, cth: 3500 },
+          { name: 'Module 3', P: 130, x: 0.49, y: 0.08, w: 0.17, h: 0.12, timType: 'gappad', tim: 0.001, kTim: 3, rcTim: 20e-6, rjc: 0, Tlimit: 45, cth: 3500 },
+          { name: 'Module 4', P: 130, x: 0.11, y: 0.22, w: 0.17, h: 0.12, timType: 'gappad', tim: 0.001, kTim: 3, rcTim: 20e-6, rjc: 0, Tlimit: 45, cth: 3500 },
+          { name: 'Module 5', P: 130, x: 0.3, y: 0.22, w: 0.17, h: 0.12, timType: 'gappad', tim: 0.001, kTim: 3, rcTim: 20e-6, rjc: 0, Tlimit: 45, cth: 3500 },
+          { name: 'Module 6', P: 130, x: 0.49, y: 0.22, w: 0.17, h: 0.12, timType: 'gappad', tim: 0.001, kTim: 3, rcTim: 20e-6, rjc: 0, Tlimit: 45, cth: 3500 },
         ],
       },
     },
@@ -267,9 +267,9 @@
   // ----- More application examples -----
 
   /** Heat source with a TIM from the library: src(name, W, [x, y] m, [length, width] m, timId, Rjc K/W, limit °C, TIM thickness?). */
-  function src(name, P, [x, y], [w, h], timId, rjc, Tlimit, tim) {
+  function src(name, P, [x, y], [w, h], timId, rjc, Tlimit, cth = 0) {
     const m = TIMS[timId];
-    return { name, P, x, y, w, h, timType: timId, tim: tim !== undefined ? tim : m.t, kTim: m.k, rcTim: m.rc, rjc, Tlimit };
+    return { name, P, x, y, w, h, timType: timId, tim: m.t, kTim: m.k, rcTim: m.rc, rjc, Tlimit, cth };
   }
   const pumpOf = (id, extDp, extQlpm) => ({ preset: id, points: PUMPS[id].points.map((pt) => pt.slice()), extDp, extQ: extQlpm * L_PER_MIN });
 
@@ -288,8 +288,8 @@
           src('Q2 SiC', 40, [0.075, 0.045], [0.016, 0.020], 'insulator', 0.35, 175),
           src('Q3 SiC', 40, [0.045, 0.135], [0.016, 0.020], 'insulator', 0.35, 175),
           src('Q4 SiC', 40, [0.075, 0.135], [0.016, 0.020], 'insulator', 0.35, 175),
-          src('Transformer', 80, [0.170, 0.090], [0.060, 0.050], 'gappad', 0, 130),
-          src('PFC inductor', 50, [0.215, 0.090], [0.040, 0.050], 'gappad', 0, 140),
+          src('Transformer', 80, [0.170, 0.090], [0.060, 0.050], 'gappad', 0, 130, 300),
+          src('PFC inductor', 50, [0.215, 0.090], [0.040, 0.050], 'gappad', 0, 140, 200),
         ],
       },
     },
@@ -304,9 +304,9 @@
         flowSource: 'pump', pump: pumpOf('industrial', 120e3, 30),
         mode: 'capacity', TsMax: 80, Q: 6000, heatArea: 'sources',
         sources: [
-          src('IGBT 1', 2200, [0.110, 0.150], [0.130, 0.140], 'greaseHP', 0.012, 150),
-          src('IGBT 2', 2200, [0.250, 0.150], [0.130, 0.140], 'greaseHP', 0.012, 150),
-          src('IGBT 3', 2200, [0.390, 0.150], [0.130, 0.140], 'greaseHP', 0.012, 150),
+          src('IGBT 1', 2200, [0.110, 0.150], [0.130, 0.140], 'greaseHP', 0.012, 150, 250),
+          src('IGBT 2', 2200, [0.250, 0.150], [0.130, 0.140], 'greaseHP', 0.012, 150, 250),
+          src('IGBT 3', 2200, [0.390, 0.150], [0.130, 0.140], 'greaseHP', 0.012, 150, 250),
         ],
       },
     },
@@ -320,7 +320,7 @@
         flowMode: 'vol', flow: 1.5 * L_PER_MIN,
         mode: 'capacity', TsMax: 70, Q: 700, heatArea: 'sources',
         sources: [
-          src('GPU', 700, [0.045, 0.045], [0.045, 0.045], 'greaseHP', 0.03, 95),
+          src('GPU', 700, [0.045, 0.045], [0.045, 0.045], 'greaseHP', 0.03, 95, 60),
         ],
       },
     },
@@ -334,10 +334,10 @@
         flowMode: 'vol', flow: 3 * L_PER_MIN,
         mode: 'load', TsMax: 35, Q: 240, heatArea: 'sources',
         sources: [
-          src('Cells 1', 60, [0.105, 0.065], [0.180, 0.110], 'gappad', 0, 40),
-          src('Cells 2', 60, [0.295, 0.065], [0.180, 0.110], 'gappad', 0, 40),
-          src('Cells 3', 60, [0.105, 0.185], [0.180, 0.110], 'gappad', 0, 40),
-          src('Cells 4', 60, [0.295, 0.185], [0.180, 0.110], 'gappad', 0, 40),
+          src('Cells 1', 60, [0.105, 0.065], [0.180, 0.110], 'gappad', 0, 40, 6000),
+          src('Cells 2', 60, [0.295, 0.065], [0.180, 0.110], 'gappad', 0, 40, 6000),
+          src('Cells 3', 60, [0.105, 0.185], [0.180, 0.110], 'gappad', 0, 40, 6000),
+          src('Cells 4', 60, [0.295, 0.185], [0.180, 0.110], 'gappad', 0, 40, 6000),
         ],
       },
     },
@@ -366,10 +366,10 @@
         flowMode: 'vol', flow: 3.5 * L_PER_MIN,
         mode: 'capacity', TsMax: 70, Q: 320, heatArea: 'sources',
         sources: [
-          src('Card A', 80, [0.060, 0.060], [0.060, 0.040], 'insulator', 0.15, 105),
-          src('Card B', 80, [0.150, 0.060], [0.060, 0.040], 'insulator', 0.15, 105),
-          src('Card C', 80, [0.060, 0.140], [0.060, 0.040], 'insulator', 0.15, 105),
-          src('PSU', 80, [0.150, 0.140], [0.060, 0.040], 'insulator', 0.15, 105),
+          src('Card A', 80, [0.060, 0.060], [0.060, 0.040], 'insulator', 0.15, 105, 150),
+          src('Card B', 80, [0.150, 0.060], [0.060, 0.040], 'insulator', 0.15, 105, 150),
+          src('Card C', 80, [0.060, 0.140], [0.060, 0.040], 'insulator', 0.15, 105, 150),
+          src('PSU', 80, [0.150, 0.140], [0.060, 0.040], 'insulator', 0.15, 105, 200),
         ],
       },
     },

@@ -15,6 +15,7 @@
   let currentApp = PRESETS.inverter.name;
   state.kCustom = MATERIALS.custom.k;
   state.rhoCustom = MATERIALS.custom.rho;
+  state.cpCustom = MATERIALS.custom.cp;
   state.flowSource = 'fixed';
   state.customFluid = clone(DEFAULT_CUSTOM_FLUID);
   state.pump = clone(DEFAULT_PUMP);
@@ -169,7 +170,7 @@
 
   const SRC_FIELDS = [
     // [key, label, quantity, row]
-    ['P', 'Power', 'power', 0], ['Tlimit', 'Temp. limit', 'temp', 0], ['rjc', 'R<sub>jc</sub>', 'rth', 0],
+    ['P', 'Power', 'power', 0], ['Tlimit', 'Temp. limit', 'temp', 0], ['rjc', 'R<sub>jc</sub>', 'rth', 0], ['cth', 'Heat capacity', 'heatcap', 0],
     ['x', 'x', 'length', 1], ['y', 'y', 'length', 1], ['w', 'Length', 'length', 1], ['h', 'Width', 'length', 1],
     ['tim', 'Thickness', 'length', 3], ['kTim', 'k', 'conductivity', 3], ['rcTim', 'R<sub>contact</sub>', 'impedance', 3],
   ];
@@ -184,7 +185,7 @@
     const n = state.sources.length + 1;
     const g = TIMS.grease;
     return { name: t('Source {n}', { n }), P: 200, x: state.L / 2, y: state.W / 2, w: Math.min(0.05, state.L / 3), h: Math.min(0.05, state.W / 3),
-      timType: 'grease', tim: g.t, kTim: g.k, rcTim: g.rc, rjc: 0, Tlimit: 125 };
+      timType: 'grease', tim: g.t, kTim: g.k, rcTim: g.rc, rjc: 0, Tlimit: 125, cth: 0 };
   }
 
   function renderSources() {
@@ -205,7 +206,7 @@
       head.append(name, dup, del);
       card.appendChild(head);
       const rows = [document.createElement('div'), document.createElement('div'), document.createElement('div'), document.createElement('div')];
-      rows[0].className = 'grid3'; rows[1].className = 'grid4'; rows[2].className = 'tim-row'; rows[3].className = 'grid3';
+      rows[0].className = 'grid4'; rows[1].className = 'grid4'; rows[2].className = 'tim-row'; rows[3].className = 'grid3';
       // TIM material picker; its values fill thickness, conductivity and contact resistance.
       const tl = document.createElement('label');
       const tt = document.createElement('span'); tt.textContent = t('Thermal interface (TIM)');
@@ -223,7 +224,7 @@
         u.className = 'u'; u.textContent = `(${Units.label(q)})`;
         const inp = document.createElement('input');
         inp.type = 'number'; inp.step = 'any'; inp.dataset.src = key; inp.dataset.q = q;
-        inp.value = displayNumber(Units.toDisplay(q, src[key]));
+        inp.value = displayNumber(Units.toDisplay(q, src[key] || 0));
         lab.append(lt, u, inp);
         rows[row].appendChild(lab);
       }
@@ -346,7 +347,7 @@
 
     const mat = MATERIALS[state.material];
     $('#material-hint').textContent = state.material === 'custom' ? '' :
-      `k = ${Units.format('conductivity', mat.k)} · ρ = ${Units.format('density', mat.rho)}`;
+      `k = ${Units.format('conductivity', mat.k)} · ρ = ${Units.format('density', mat.rho)} · cp = ${Units.format('cp', mat.cp)}`;
 
     const f = FLUIDS[state.fluid];
     let fh = '';
@@ -467,7 +468,7 @@
     $('#preset').addEventListener('change', (e) => {
       const p = PRESETS[e.target.value];
       if (!p) return;
-      state = Object.assign({ kCustom: state.kCustom, rhoCustom: state.rhoCustom, sources: [], flowSource: 'fixed', pump: state.pump, customFluid: state.customFluid }, clone(p.state));
+      state = Object.assign({ kCustom: state.kCustom, rhoCustom: state.rhoCustom, cpCustom: state.cpCustom, sources: [], flowSource: 'fixed', pump: state.pump, customFluid: state.customFluid }, clone(p.state));
       currentApp = p.name;
       renderInputs();
       schedule();
@@ -566,6 +567,7 @@
       Units.setSystem(saved.u);
     }
     if (!Array.isArray(state.sources)) state.sources = [];
+    if (!(state.cpCustom > 0)) state.cpCustom = MATERIALS.custom.cp;
     if (!state.pump || !Array.isArray(state.pump.points)) state.pump = clone(DEFAULT_PUMP);
     if (!state.customFluid) state.customFluid = clone(DEFAULT_CUSTOM_FLUID);
     state.sources.forEach((src) => { if (!src.timType) { src.timType = 'custom'; src.rcTim = 0; } });
@@ -633,6 +635,7 @@
     renderSteps(res);
     renderCharts(res);
     if (study) study.render();
+    if (trans) trans.render();
   }
 
   /** Headline thermal numbers: from the 2D map when available, otherwise the 1D model. */
@@ -1039,7 +1042,7 @@
   }
 
   // Read-only hooks for the PDF report.
-  window.App = { calcSteps, studyReport: () => (study ? study.reportData() : {}),
+  window.App = { calcSteps, studyReport: () => (study ? study.reportData() : {}), transientReport: () => (trans ? trans.reportData() : null),
     state: () => state,
     result: () => lastResult,
     map: () => lastMap,
@@ -1091,8 +1094,12 @@
 
   // ---------- Design studies (comparison, sweep) ----------
 
-  let study = null;
+  let study = null, trans = null;
   function initStudy() {
+    trans = Transient.init({
+      t, fmtPower, toast, Physics, Physics2D,
+      current: () => ({ state, s: calcState, res: lastResult, map: lastMap }),
+    });
     study = Study.init({
       t, fmtPower, toast,
       flowQty: (s) => ({ vol: 'volflow', mass: 'massflow', std: 'stdflow' }[s.flowMode]),

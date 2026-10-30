@@ -14,6 +14,7 @@ A browser-based tool for sizing liquid- and gas-cooled cold plates for **power e
 - Reynolds number, flow regime, heat-transfer coefficient, fin efficiency and NTU
 - Heat and pressure-drop curves against flow rate
 - **Step-by-step calculation**: every formula of the 1D model with the current design's numbers substituted (geometry, properties, Re, Nu, fin efficiency, resistance network, component temperatures, pressure drop), with literature references. Also included as an appendix in the PDF report, for design reviews and teaching
+- **Transient load**: overload steps, cold starts and pulse trains on the full 2D plate model with the plate's heat capacity and optional component heat capacity (module baseplates, battery cells). Shows the temperature history of the critical component, time to reach its limit, the steady state a sustained load would reach, the plate response time and, for pulses, the swing in the last cycle. Exports to CSV and the PDF report
 - **Size for a target** (inverse sizing): find the minimum flow rate, fewest channels or passes, thinnest plate or highest coolant inlet temperature that still meets the thermal target (margin below every component limit, a peak surface temperature, or a heat load at the surface limit), optionally within a pressure-drop limit. It scans the range and bisects with the full 2D model, says what limits the answer (thermal target, pressure drop or geometry), and applies it in one click
 - **Parameter sweep**: vary one input (flow, channel count or size, plate thickness, inlet temperature, heat load, source power …) over a range and get the result, pressure drop, pump power and flow uniformity at each point, as charts and a table. Apply any point to the design with one click
 - **Design comparison**: save up to four variants and compare them side by side with the current design; differing inputs are shaded and the best value in each row is highlighted
@@ -98,6 +99,7 @@ js/data.js          fluids, materials, presets
 js/physics.js       1D thermal / hydraulic solver (also runs in Node)
 js/physics2d.js     2D plate temperature model with heat sources (also runs in Node)
 js/steps.js         step-by-step calculation: formulas with substituted values (also runs in Node)
+js/transient.js     transient load card (profile, charts, CSV)
 js/study.js         inverse sizing, parameter sweeps and design comparison (calculation part also runs in Node)
 js/drawing.js       plate top view and cross-section (SVG)
 js/charts.js        performance curves (SVG)
@@ -113,7 +115,7 @@ icons/              favicon (SVG/PNG), iOS apple-touch-icon, PWA icons
 - ~~Step-by-step calculation with formulas and references~~ (done)
 - ~~Side-by-side design comparison, parameter sweeps, CSV export~~ (done)
 - ~~Inverse sizing (minimum flow, channels, plate thickness, warmest coolant for a target)~~ (done)
-- Transient model (fast charge, overload and pulsed loads)
+- ~~Transient model (fast charge, overload and pulsed loads)~~ (done)
 - Pin fins and turbulators
 
 ## Author and license

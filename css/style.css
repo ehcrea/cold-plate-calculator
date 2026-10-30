@@ -293,7 +293,7 @@ svg .channel-cut { fill: var(--accent-soft); stroke: var(--accent); stroke-width
   .card, fieldset { box-shadow: none; break-inside: avoid; }
   .notes { display: block; }
   .steps:not([open]) { display: none; }
-  #size-card, #sweep-card .sweep-controls, #compare-card .card-actions, .cmp-actions, table.sweep td:last-child, table.sweep th:last-child { display: none; }
+  #size-card, .tr-controls, #tr-hint, #sweep-card .sweep-controls, #compare-card .card-actions, .cmp-actions, table.sweep td:last-child, table.sweep th:last-child { display: none; }
   .calc-step { break-inside: avoid; }
   .notes[open] summary ~ *, .notes summary ~ * { display: block; }
 }
@@ -409,3 +409,16 @@ table.compare td.best { color: var(--ok); font-weight: 700; }
 @media (max-width: 700px) {
   .size-controls, .size-row { grid-template-columns: 1fr; }
 }
+
+/* Transient load */
+.tr-controls { display: grid; gap: 10px; }
+.tr-controls > .seg { justify-self: start; }
+.tr-fields { display: grid; grid-template-columns: repeat(5, minmax(80px, 1fr)); gap: 10px; align-items: end; }
+.tr-controls > .btn { justify-self: start; height: 34px; }
+#tr-hint { margin-top: 8px; }
+#tr-summary { margin-top: 6px; }
+#tr-summary dd.sub { font-weight: 400; font-size: 11px; color: var(--text-3); }
+.tr-out { margin-top: 12px; }
+#tr-card.stale .tr-out, #tr-card.stale #tr-summary { opacity: .5; }
+#tr-card.stale .sweep-status { color: var(--warn); }
+@media (max-width: 700px) { .tr-fields { grid-template-columns: 1fr 1fr; } }

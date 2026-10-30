@@ -46,6 +46,8 @@
     cp:          { si: 'J/kg·K',  SI: linear('J/kg·K', 1),            IMP: linear('BTU/lb·°F', 1 / 4186.8) },
     viscosity:   { si: 'Pa·s',    SI: linear('mPa·s', 1e3),           IMP: linear('cP', 1e3) },
     power2:      { si: 'W',       SI: linear('W', 1),                 IMP: linear('hp', 1 / 745.6999) },
+    heatcap:     { si: 'J/K',     SI: linear('J/K', 1),               IMP: linear('BTU/°F', 1 / 1899.1) },
+    time:        { si: 's',       SI: linear('s', 1),                 IMP: linear('s', 1) },
   };
 
   let system = 'SI';

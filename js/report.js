@@ -162,6 +162,21 @@
       pdf.text(l, PAGE.m, w.y + 2.5);
       w.y += l.length * 3.3 + 1.5;
     };
+    const tr = App.transientReport();
+    if (tr) {
+      w.ensure(80);
+      w.heading(t('Transient load'));
+      note(tr.profile);
+      if (tr.note) note(tr.note);
+      if (figs.tr1) {
+        const y0 = w.y;
+        const h1 = w.image(figs.tr1, colW, 55, PAGE.m);
+        w.y = y0;
+        const h2 = w.image(figs.tr2, colW, 55, PAGE.m + colW + 8);
+        w.y = y0 + Math.max(h1, h2) + 3;
+      }
+      twoColumnRows(w, tr.rows);
+    }
     if (data.compare) {
       w.ensure(40);
       w.heading(t('Design comparison'));
@@ -287,8 +302,8 @@
       // The thermal curve is computed in the background; wait for it to finish drawing.
       for (let i = 0; i < 100 && !document.querySelector('#chart1 svg') && App.thermal(); i++) await new Promise((r) => setTimeout(r, 50));
       const grab = (sel) => { const s = document.querySelector(sel + ' svg'); return s ? svgToPng(s) : Promise.resolve(null); };
-      const [top, section, map, chart1, chart2, dist, sweep1, sweep2] = await Promise.all([grab('#drawing'), grab('#section'), grab('#map'), grab('#chart1'), grab('#chart2'), grab('#dist-chart'), grab('#sweep-chart1'), grab('#sweep-chart2')]);
-      return { top, section, map, chart1, chart2, dist, sweep1, sweep2 };
+      const [top, section, map, chart1, chart2, dist, sweep1, sweep2, tr1, tr2] = await Promise.all([grab('#drawing'), grab('#section'), grab('#map'), grab('#chart1'), grab('#chart2'), grab('#dist-chart'), grab('#sweep-chart1'), grab('#sweep-chart2'), grab('#tr-chart1'), grab('#tr-chart2')]);
+      return { top, section, map, chart1, chart2, dist, sweep1, sweep2, tr1, tr2 };
     } finally {
       if (prev === null) html.removeAttribute('data-theme'); else html.setAttribute('data-theme', prev);
       App.rerender();
@@ -700,6 +715,7 @@
       'Laminar flow: Shah & London Nu(H1) and f·Re for the channel aspect ratio with entry corrections. Turbulent flow: Gnielinski with Haaland friction. Re 2300-4000 is blended.',
       '2D plate model: finite-difference grid over the plate face with in-plane conduction through the local solid thickness. Cells above channels and headers are coupled to the coolant through the heated-face wall and convective film (fin-corrected), and the coolant is marched along each channel path. Components add a TIM layer ((t/k + contact resistance)/A) and junction-to-case resistance.',
       'Parallel layouts: the flow split between channels comes from a manifold network model (header friction and momentum against the pressure drop of each channel), and the flow in each channel sets its own heat transfer in the 2D model.',
+      'Transient load: implicit (backward-Euler) time stepping of the same 2D plate model with the heat capacity of the plate and, optionally, of each component; the coolant is treated as quasi-steady because it passes through the plate in a fraction of a second. Junction-to-case and TIM layers have no heat capacity, so their share of a load change appears at once (conservative).',
       'Not modelled: through-thickness spreading under small sources, contact resistance beyond the TIM layer, two-phase flow, gas compressibility within the plate.',
     ].map((m) => t(m));
     w.font(8, 'normal', INK2);
