@@ -7,6 +7,7 @@
   'use strict';
 
   const NS = 'http://www.w3.org/2000/svg';
+  const t = (s, p) => (root.I18N ? root.I18N.t(s, p) : s);
   const el = (tag, attrs, parent) => {
     const n = document.createElementNS(NS, tag);
     for (const k in attrs) n.setAttribute(k, attrs[k]);
@@ -37,7 +38,7 @@
     const series = (o.series || [{ name: o.yTitle, data: o.data }])
       .map((s, i) => Object.assign({}, s, { slot: i + 1, data: s.data.filter((d) => isFinite(d.x) && isFinite(d.y)) }))
       .filter((s) => s.data.length >= 2);
-    if (!series.length) { container.textContent = 'Not enough valid points to plot.'; return; }
+    if (!series.length) { container.textContent = t('Not enough valid points to plot.'); return; }
 
     if (multi) {
       const lg = document.createElement('div');
@@ -137,7 +138,7 @@
         if (multi) row.appendChild(document.createTextNode(' ' + (s.short || s.name)));
         tip.appendChild(row);
       });
-      const sub = document.createElement('div'); sub.className = 'muted'; sub.textContent = 'at ' + o.fmtXFull(ref.x); tip.appendChild(sub);
+      const sub = document.createElement('div'); sub.className = 'muted'; sub.textContent = t('at {x}', { x: o.fmtXFull(ref.x) }); tip.appendChild(sub);
       tip.hidden = false;
       const scale = r.width / W;
       const offTop = container.querySelector('.chart-legend') ? container.querySelector('.chart-legend').offsetHeight : 0;

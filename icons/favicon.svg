@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3488e6"/><stop offset="1" stop-color="#1858aa"/></linearGradient>
+    <linearGradient id="ch" gradientUnits="userSpaceOnUse" x1="0" y1="180" x2="0" y2="348"><stop offset="0" stop-color="#2a78d6"/><stop offset="1" stop-color="#e34948"/></linearGradient>
+    <clipPath id="plate"><rect x="88" y="132" width="336" height="264" rx="30"/></clipPath>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect x="88" y="132" width="336" height="264" rx="30" fill="#f4f7fb"/>
+  <path clip-path="url(#plate)" d="M60 180H368a28 28 0 0 1 0 56H144a28 28 0 0 0 0 56H368a28 28 0 0 1 0 56H60" fill="none" stroke="url(#ch)" stroke-width="30"/>
+</svg>

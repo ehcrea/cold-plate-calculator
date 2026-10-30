@@ -206,6 +206,40 @@ check('a thicker TIM raises the junction temperature by the extra P·t/(k·A)', 
   near(b.Tcase - b.Tplate - (a.Tcase - a.Tplate), src.P * 1e-4 / (src.kTim * src.w * src.h), 1e-9);
 });
 
+console.log('Translations');
+const I18N = require('../js/i18n.js');
+const fs = require('fs');
+const path = require('path');
+const KEYS = new Set(I18N.keys());
+check('every dictionary row has English, German, Dutch and Turkish with matching placeholders', () => {
+  const ph = (s) => (s.match(/\{\w+\}/g) || []).sort().join();
+  for (const row of I18N.rows()) {
+    assert.strictEqual(row.length, 4, row[0]);
+    row.forEach((v) => assert.ok(typeof v === 'string' && v.length, row[0]));
+    row.slice(1).forEach((v) => assert.strictEqual(ph(v), ph(row[0]), `placeholders in "${row[0]}"`));
+  }
+});
+check('all data names (presets, materials, fluids, pumps, TIMs) are translated', () => {
+  const miss = [];
+  for (const col of [D.PRESETS, D.MATERIALS, D.FLUIDS, D.PUMPS, D.TIMS]) for (const v of Object.values(col)) if (!KEYS.has(v.name)) miss.push(v.name);
+  assert.deepStrictEqual(miss, []);
+});
+check('every literal t(...) key and solver message template is translated', () => {
+  const miss = new Set();
+  const need = (k) => { if (k && !KEYS.has(k)) miss.add(k); };
+  for (const f of ['app.js', 'report.js', 'drawing.js', 'charts.js']) {
+    const src = fs.readFileSync(path.join(__dirname, '../js', f), 'utf8');
+    for (const m of src.matchAll(/\bt\('((?:[^'\\]|\\.)*)'/g)) need(m[1].replace(/\\'/g, "'"));
+  }
+  const phys = fs.readFileSync(path.join(__dirname, '../js/physics.js'), 'utf8');
+  for (const m of phys.matchAll(/(?:\bM|add)\('(?:error|warn|info)', (?:[^']*\? )?'([^']+)'(?: : '([^']+)')?/g)) { need(m[1]); need(m[2]); }
+  for (const m of phys.matchAll(/msg: '([^']+)'/g)) need(m[1]);
+  assert.deepStrictEqual([...miss], []);
+});
+check('t() fills placeholders and translates names passed as parameters', () => {
+  assert.strictEqual(I18N.t('Source {n}', { n: 3 }), 'Source 3');
+});
+
 console.log('Units');
 check('1 gpm = 3.785 L/min', () => near(U.fromDisplay('volflow', 1, 'IMP') * 60e3, 3.78541, 1e-4));
 check('100 °C = 212 °F, round trip', () => { near(U.toDisplay('temp', 100, 'IMP'), 212, 1e-9); near(U.fromDisplay('temp', 212, 'IMP'), 100, 1e-9); });

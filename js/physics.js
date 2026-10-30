@@ -21,6 +21,13 @@
   const RE_LAM = 2300;
   const RE_TURB = 4000;
 
+  // ---------- Messages ----------
+
+  /** Fill {name} placeholders. */
+  function fill(tpl, p) { return p ? tpl.replace(/\{(\w+)\}/g, (m, k) => (k in p ? String(p[k]) : m)) : tpl; }
+  /** Design-check message: template + values, so the UI can translate it; msg is the English text. */
+  function M(level, tpl, params) { return { level, tpl, params, msg: fill(tpl, params) }; }
+
   // ---------- Fluid properties ----------
 
   function interpRows(rows, T, col, logScale) {
@@ -164,22 +171,22 @@
       const hd = s.headerDepth > 0 ? s.headerDepth : b;
       headerArea = s.header * hd;
       headerVol = 2 * s.header * (span - 2 * m) * hd;
-      if (s.t - hd - s.wallHeated < 0) issues.push({ level: 'error', msg: 'Header depth plus heated-face wall exceeds plate thickness.' });
+      if (s.t - hd - s.wallHeated < 0) issues.push(M('error', 'Header depth plus heated-face wall exceeds plate thickness.'));
     }
 
     const backWall = s.t - b - s.wallHeated;
     const heatArea = s.heatArea === 'channels' ? (span - 2 * m) * (run - 2 * m) : s.W * s.L;
     const fluidVol = nPar * A * Lch + headerVol;
 
-    if (!(s.W > 0 && s.L > 0 && s.t > 0)) issues.push({ level: 'error', msg: 'Plate dimensions must be positive.' });
-    if (!(a > 0 && b > 0)) issues.push({ level: 'error', msg: 'Channel dimensions must be positive.' });
-    if (web <= 0) issues.push({ level: 'error', msg: `Channels do not fit: ${nRuns} runs need a pitch larger than the channel width. Reduce the count or the channel width, or widen the plate.` });
-    else if (web < 0.001) issues.push({ level: 'warn', msg: 'Wall between channels is under 1 mm (0.04 in) — check manufacturability.' });
-    if (straight <= 0) issues.push({ level: 'error', msg: 'No straight channel length left after margins, bends and headers. Reduce margins/header width.' });
-    if (backWall < 0) issues.push({ level: 'error', msg: 'Channel depth plus heated-face wall exceeds plate thickness.' });
-    else if (backWall < 0.001) issues.push({ level: 'warn', msg: 'Back wall (opposite the heated face) is under 1 mm — check pressure rating and sealing/brazing.' });
-    if (s.wallHeated <= 0) issues.push({ level: 'error', msg: 'Heated-face wall thickness must be positive.' });
-    else if (s.wallHeated < 0.001) issues.push({ level: 'warn', msg: 'Heated-face wall is under 1 mm — check flatness and machining limits.' });
+    if (!(s.W > 0 && s.L > 0 && s.t > 0)) issues.push(M('error', 'Plate dimensions must be positive.'));
+    if (!(a > 0 && b > 0)) issues.push(M('error', 'Channel dimensions must be positive.'));
+    if (web <= 0) issues.push(M('error', 'Channels do not fit: {n} runs need a pitch larger than the channel width. Reduce the count or the channel width, or widen the plate.', { n: nRuns }));
+    else if (web < 0.001) issues.push(M('warn', 'Wall between channels is under 1 mm (0.04 in) — check manufacturability.'));
+    if (straight <= 0) issues.push(M('error', 'No straight channel length left after margins, bends and headers. Reduce margins/header width.'));
+    if (backWall < 0) issues.push(M('error', 'Channel depth plus heated-face wall exceeds plate thickness.'));
+    else if (backWall < 0.001) issues.push(M('warn', 'Back wall (opposite the heated face) is under 1 mm — check pressure rating and sealing/brazing.'));
+    if (s.wallHeated <= 0) issues.push(M('error', 'Heated-face wall thickness must be positive.'));
+    else if (s.wallHeated < 0.001) issues.push(M('warn', 'Heated-face wall is under 1 mm — check flatness and machining limits.'));
 
     return { run, span, a, b, A, P, Dh, alpha, nRuns, nPar, pitch, web, straight, Lch, nBends, bendRadius,
       headerArea, backWall, heatArea, fluidVol, circuits, count, issues };
@@ -319,7 +326,7 @@
     const rhoS = s.material === 'custom' ? s.rhoCustom : mat.rho;
     const propsIn = fluidProps(s.fluid, s.Tin, s.pIn);
     const mdot = massFlow(s, propsIn);
-    if (!(mdot > 0)) return { ok: false, geometry: g, issues: issues.concat({ level: 'error', msg: 'Flow rate must be positive.' }) };
+    if (!(mdot > 0)) return { ok: false, geometry: g, issues: issues.concat(M('error', 'Flow rate must be positive.')) };
 
     const serp = s.layout === 'serpentine';
     const relRough = s.roughness / g.Dh;
@@ -389,19 +396,19 @@
     const pumpPower = dp * volFlow;
 
     // Warnings / design checks. opts.fmt(quantity, siValue) formats values in the caller's unit system.
-    const add = (level, msg) => issues.push({ level, msg });
+    const add = (level, tpl, params) => issues.push(M(level, tpl, params));
     const F = opts.fmt || defaultFmt;
     if (pr.phase === 'liquid') {
-      if (v > mat.vmax) add('warn', `Channel velocity ${F('velocity', v)} exceeds the ~${F('velocity', mat.vmax)} erosion-corrosion guideline for ${mat.name}.`);
-      if (vPort > mat.vmax * 1.5) add('warn', `Port velocity ${F('velocity', vPort)} is high — consider a larger port/fitting.`);
-      if (v < 0.2) add('info', `Channel velocity is below ${F('velocity', 0.2)} — risk of air entrapment and fouling; flow may not purge bubbles.`);
-      if (s.Tin < fluid.freeze + 3) add('error', `Inlet temperature is at or near the freezing point of ${fluid.short} (${F('temp', fluid.freeze)}).`);
+      if (v > mat.vmax) add('warn', 'Channel velocity {v} exceeds the ~{vmax} erosion-corrosion guideline for {mat}.', { v: F('velocity', v), vmax: F('velocity', mat.vmax), mat: mat.name });
+      if (vPort > mat.vmax * 1.5) add('warn', 'Port velocity {v} is high — consider a larger port/fitting.', { v: F('velocity', vPort) });
+      if (v < 0.2) add('info', 'Channel velocity is below {v} — risk of air entrapment and fouling; flow may not purge bubbles.', { v: F('velocity', 0.2) });
+      if (s.Tin < fluid.freeze + 3) add('error', 'Inlet temperature is at or near the freezing point of {fluid} ({T}).', { fluid: fluid.short, T: F('temp', fluid.freeze) });
       // Aqueous coolants: water saturation at inlet pressure plus an offset. Others: boiling point at 1 atm.
       const fixedBoil = fluid.boil !== undefined;
       const Tboil = fixedBoil ? fluid.boil : waterTsat(s.pIn) + fluid.boilOffset;
       r.Tboil = Tboil;
-      if (r.TsMax > Tboil - 5) add('warn', `Peak surface temperature is within ${F('dtemp', 5)} of the coolant boiling point (~${F('temp', Tboil)} ${fixedBoil ? 'at 1 atm' : 'at inlet pressure'}) — local boiling possible.`);
-      if (fluid.dielectric) add('info', `${fluid.short} is a dielectric coolant (safe on live electronics), but its heat capacity and conductivity are far below water/glycol — expect lower performance and check seal/material compatibility.`);
+      if (r.TsMax > Tboil - 5) add('warn', fixedBoil ? 'Peak surface temperature is within {dT} of the coolant boiling point (~{T} at 1 atm) — local boiling possible.' : 'Peak surface temperature is within {dT} of the coolant boiling point (~{T} at inlet pressure) — local boiling possible.', { dT: F('dtemp', 5), T: F('temp', Tboil) });
+      if (fluid.dielectric) add('info', '{fluid} is a dielectric coolant (safe on live electronics), but its heat capacity and conductivity are far below water/glycol — expect lower performance and check seal/material compatibility.', { fluid: fluid.short });
       if (s.material !== 'custom' && mat.family === 'al' && s.fluid === 'water')
         add('info', 'Aluminium with plain water: use inhibited coolant or controlled DI water to avoid corrosion.');
       if (s.material !== 'custom' && mat.family === 'cu' && /fuel/i.test(opts.app || ''))
@@ -409,8 +416,8 @@
     } else {
       const Mach = v / pr.sound;
       r.Mach = Mach;
-      if (Mach > 0.3) add('warn', `Mach ${Mach.toFixed(2)} in channels — compressibility is significant; results unreliable above Mach 0.3.`);
-      if (dp > 0.1 * s.pIn) add('warn', `Pressure drop is ${(100 * dp / s.pIn).toFixed(0)} % of inlet pressure — density changes along the plate are not modelled; treat results as rough.`);
+      if (Mach > 0.3) add('warn', 'Mach {M} in channels — compressibility is significant; results unreliable above Mach 0.3.', { M: Mach.toFixed(2) });
+      if (dp > 0.1 * s.pIn) add('warn', 'Pressure drop is {pct} % of inlet pressure — density changes along the plate are not modelled; treat results as rough.', { pct: (100 * dp / s.pIn).toFixed(0) });
       if (s.pIn > 50e5) add('warn', 'Above ~50 bar the ideal-gas assumption becomes inaccurate (especially for H₂).');
       if (s.fluid === 'h2') {
         add('info', 'Hydrogen: use H₂-compatible materials and seals; follow ISO 19880 / leak-tightness requirements.');
@@ -419,15 +426,15 @@
     }
     if (dist) {
       const lowCh = dist.minI + 1;
-      if (dist.min < 0.8) add('warn', `Uneven flow split: channel ${lowCh} gets only ${(100 * dist.min).toFixed(0)} % of the average flow (max ${(100 * dist.max).toFixed(0)} %). Widen or deepen the headers, ${s.layout === 'parallelZ' ? 'try a U-type layout, ' : ''}or make the channels more restrictive.`);
-      else if (dist.min < 0.9) add('info', `Channel flows range from ${(100 * dist.min).toFixed(0)} % to ${(100 * dist.max).toFixed(0)} % of the average.`);
+      if (dist.min < 0.8) add('warn', s.layout === 'parallelZ' ? 'Uneven flow split: channel {ch} gets only {min} % of the average flow (max {max} %). Widen or deepen the headers, try a U-type layout, or make the channels more restrictive.' : 'Uneven flow split: channel {ch} gets only {min} % of the average flow (max {max} %). Widen or deepen the headers, or make the channels more restrictive.', { ch: lowCh, min: (100 * dist.min).toFixed(0), max: (100 * dist.max).toFixed(0) });
+      else if (dist.min < 0.9) add('info', 'Channel flows range from {min} % to {max} % of the average.', { min: (100 * dist.min).toFixed(0), max: (100 * dist.max).toFixed(0) });
     }
-    if (pr.outOfRange) add('warn', `Fluid temperature outside property data range (${F('temp', pr.range[0])} … ${F('temp', pr.range[1])}) — properties extrapolated as constant.`);
-    if (dp > 100e3) add('warn', `Pressure drop is ${F('dpressure', dp)} (above 1 bar) — check pump capability and plate pressure rating.`);
-    if (r.Tout - s.Tin > 15) add('info', `Coolant temperature rise is ${F('dtemp', r.Tout - s.Tin)} — consider more flow for better uniformity.`);
+    if (pr.outOfRange) add('warn', 'Fluid temperature outside property data range ({a} … {b}) — properties extrapolated as constant.', { a: F('temp', pr.range[0]), b: F('temp', pr.range[1]) });
+    if (dp > 100e3) add('warn', 'Pressure drop is {dp} (above 1 bar) — check pump capability and plate pressure rating.', { dp: F('dpressure', dp) });
+    if (r.Tout - s.Tin > 15) add('info', 'Coolant temperature rise is {dT} — consider more flow for better uniformity.', { dT: F('dtemp', r.Tout - s.Tin) });
     if (s.mode === 'capacity' && s.TsMax <= s.Tin) add('error', 'Max. surface temperature must be above the coolant inlet temperature.');
     const spread = r.w * (r.Tout - s.Tin) + r.Q * r.Rspread;
-    if (r.eta < 0.6) add('info', `Channel wall fin efficiency is low (${(100 * r.eta).toFixed(0)} %) — plate material conducts poorly for this channel depth.`);
+    if (r.eta < 0.6) add('info', 'Channel wall fin efficiency is low ({pct} %) — plate material conducts poorly for this channel depth.', { pct: (100 * r.eta).toFixed(0) });
 
     const plateMass = rhoS * (s.W * s.L * s.t - g.fluidVol);
     return {
@@ -523,7 +530,7 @@
   }
 
   const Physics = { solve, sweep, fluidProps, geometry, waterTsat, laminarFD, laminarFApp, laminarNu, turbulentF, turbulentNu, channelFlow, bendK,
-    channelHT, flowDistribution, pumpDp, pumpMaxFlow, loopDp, systemDp, operatingPoint, effectiveState };
+    fill, M, channelHT, flowDistribution, pumpDp, pumpMaxFlow, loopDp, systemDp, operatingPoint, effectiveState };
   if (typeof module !== 'undefined' && module.exports) module.exports = Physics;
   else root.Physics = Physics;
 })(typeof window !== 'undefined' ? window : globalThis);

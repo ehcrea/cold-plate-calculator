@@ -15,7 +15,7 @@ A browser-based tool for sizing liquid- and gas-cooled cold plates for **power e
 - Heat and pressure-drop curves against flow rate
 - Design warnings: erosion velocity, freezing and boiling margins, manifold maldistribution, Mach number and gas compressibility, material compatibility
 
-Switches between **SI and Imperial** units. **Export PDF** downloads a design report (inputs, results, plate drawing, breakdowns, performance curves, design checks), and every design can be shared as a link.
+Available in **English, German, Dutch and Turkish**: the interface, design checks and PDF report, with local number formatting. Switches between **SI and Imperial** units, and between light and dark themes. It can be installed to a phone's home screen (iOS app icon and web app manifest included). **Export PDF** downloads a design report (inputs, results, plate drawing, breakdowns, performance curves, design checks), and every design can be shared as a link.
 
 > **v2 is an engineering estimate:** a 2D plate conduction model coupled to 1D channel hydraulics, meant for concept sizing (roughly ±15–30 %). Validate final designs with CFD or testing.
 
@@ -78,6 +78,7 @@ The 1D model supplies the pressure drop, heat-transfer coefficient and resistanc
 index.html          page structure
 css/style.css       styles (light/dark, responsive, print)
 js/units.js         SI ↔ Imperial conversion
+js/i18n.js          translations (EN, DE, NL, TR) and page-text translation
 js/data.js          fluids, materials, presets
 js/physics.js       1D thermal / hydraulic solver (also runs in Node)
 js/physics2d.js     2D plate temperature model with heat sources (also runs in Node)
@@ -86,6 +87,7 @@ js/charts.js        performance curves (SVG)
 js/report.js        PDF design report (jsPDF, loaded on demand)
 js/app.js           UI controller
 tests/              Node sanity checks
+icons/              favicon (SVG/PNG), iOS apple-touch-icon, PWA icons
 ```
 
 ## Roadmap

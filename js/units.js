@@ -71,7 +71,7 @@
       let d = digits;
       if (d === undefined) d = a >= 1000 ? 0 : a >= 100 ? 1 : a >= 10 ? 1 : a >= 1 ? 2 : a >= 0.01 ? 3 : 4;
       if (a >= 1e6 || (a > 0 && a < 1e-4)) return v.toExponential(2);
-      return v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: d });
+      return v.toLocaleString((root.I18N && root.I18N.locale) || 'en-US', { minimumFractionDigits: 0, maximumFractionDigits: d });
     },
   };
 

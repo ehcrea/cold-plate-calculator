@@ -7,6 +7,7 @@
   'use strict';
 
   const NS = 'http://www.w3.org/2000/svg';
+  const t = (s, p) => (root.I18N ? root.I18N.t(s, p) : s);
 
   function el(tag, attrs, parent) {
     const n = document.createElementNS(NS, tag);
@@ -163,7 +164,7 @@
       const anchor = d[1] < 0 ? 'end' : d[1] > 0 ? 'start' : 'middle';
       const tx = ex + (d[1] < 0 ? -3 : d[1] > 0 ? 3 : 0);
       const ty = ey + (d[2] < 0 ? -3 : d[2] > 0 ? 11 : 4);
-      text(svg, tx, ty, pt.label, { class: 'port-label', 'text-anchor': anchor, fill: pt.color });
+      text(svg, tx, ty, t(pt.label), { class: 'port-label', 'text-anchor': anchor, fill: pt.color });
     }
 
     dimLine(svg, x0, y1 + 22, x1, y1 + 22, 'L ' + fmtLen(s.L), false);
@@ -253,7 +254,7 @@
     const bar = document.createElement('span'); bar.className = 'ramp';
     bar.style.background = `linear-gradient(90deg, ${RAMP.join(', ')})`;
     const hi = document.createElement('span'); hi.textContent = Units.format('temp', map.Tmax);
-    const mark = document.createElement('span'); mark.className = 'hot-key'; mark.textContent = '◯ hottest point';
+    const mark = document.createElement('span'); mark.className = 'hot-key'; mark.textContent = t('◯ hottest point');
     container.append(lo, bar, hi, mark);
   }
 
@@ -283,7 +284,7 @@
       el('line', { x1: x, y1: padT - 22, x2: x, y2: padT - 6, class: 'heat-arrow' }, svg);
       el('path', { d: `M${x - 3.5} ${padT - 8} L${x + 3.5} ${padT - 8} L${x} ${padT - 2} Z`, class: 'heat-head' }, svg);
     }
-    text(svg, padL - 8, padT - 10, 'Heat', { class: 'dim-text', 'text-anchor': 'end' });
+    text(svg, padL - 8, padT - 10, t('Heat'), { class: 'dim-text', 'text-anchor': 'end' });
 
     for (let j = 0; j < runs; j++) {
       const vc = s.margin + (j + 0.5) * g.pitch;
@@ -299,16 +300,16 @@
       el('line', { x1: ax - 3, y1: Y(z1), x2: ax + 3, y2: Y(z1), class: 'dim' }, svg);
       text(svg, ax + 7, (Y(z0) + Y(z1)) / 2 + 4, label, { class: 'dim-text' });
     };
-    if (s.wallHeated * 1e3 * k > 6) ann(0, s.wallHeated, 'wall ' + fmtLen(s.wallHeated));
-    if (g.b * 1e3 * k > 6) ann(s.wallHeated, s.wallHeated + g.b, (s.shape === 'round' ? 'Ø ' : 'depth ') + fmtLen(g.b));
-    if (g.backWall * 1e3 * k > 6) ann(s.wallHeated + g.b, s.t, 'back ' + fmtLen(g.backWall));
+    if (s.wallHeated * 1e3 * k > 6) ann(0, s.wallHeated, t('wall {v}', { v: fmtLen(s.wallHeated) }));
+    if (g.b * 1e3 * k > 6) ann(s.wallHeated, s.wallHeated + g.b, s.shape === 'round' ? 'Ø ' + fmtLen(g.b) : t('depth {v}', { v: fmtLen(g.b) }));
+    if (g.backWall * 1e3 * k > 6) ann(s.wallHeated + g.b, s.t, t('back {v}', { v: fmtLen(g.backWall) }));
 
     // Pitch and thickness.
     if (runs >= 2) {
       const v1 = s.margin + 0.5 * g.pitch, v2 = v1 + g.pitch;
       const y = Y(s.t) + 0.5;
       el('line', { x1: X(v1), y1: y, x2: X(v2), y2: y, class: 'dim' }, svg);
-      text(svg, (X(v1) + X(v2)) / 2, y - 4, 'pitch ' + fmtLen(g.pitch), { class: 'dim-text', 'text-anchor': 'middle' });
+      text(svg, (X(v1) + X(v2)) / 2, y - 4, t('pitch {v}', { v: fmtLen(g.pitch) }), { class: 'dim-text', 'text-anchor': 'middle' });
     }
     text(svg, padL - 8, Y(s.t / 2) + 4, 't ' + fmtLen(s.t), { class: 'dim-text', 'text-anchor': 'end' });
   }

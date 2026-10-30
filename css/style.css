@@ -84,6 +84,7 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
 select:focus-visible, input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 input:invalid, input.bad { border-color: var(--err); }
 .preset select { width: auto; max-width: 270px; }
+.lang select { width: auto; }
 
 .btn {
   font: inherit; font-weight: 500; height: 32px; padding: 0 12px; border-radius: 7px; cursor: pointer;
