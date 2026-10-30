@@ -467,10 +467,138 @@
     ['About this calculator', 'Über diesen Rechner', 'Over deze calculator', 'Bu hesaplayıcı hakkında'],
     ['Close', 'Schließen', 'Sluiten', 'Kapat'],
     ['MIT License', 'MIT-Lizenz', 'MIT-licentie', 'MIT Lisansı'],
+    ['Help', 'Hilfe', 'Help', 'Yardım'],
+    ['How to use the calculator', 'So benutzen Sie den Rechner', 'Zo gebruikt u de calculator', 'Hesaplayıcı nasıl kullanılır'],
+    ['Step-by-step calculation', 'Schritt-für-Schritt-Berechnung', 'Stapsgewijze berekening', 'Adım adım hesaplama'],
+    ['The 1D model written out: each formula with this design\'s numbers substituted, in SI units. Use it to check results by hand or for teaching.', 'Das 1D-Modell ausgeschrieben: jede Formel mit den Zahlen dieses Entwurfs eingesetzt, in SI-Einheiten. Zum Nachrechnen von Hand oder für die Lehre.', 'Het 1D-model uitgeschreven: elke formule met de getallen van dit ontwerp ingevuld, in SI-eenheden. Gebruik het om resultaten met de hand te controleren of voor onderwijs.', '1B modelin açık hali: her formül bu tasarımın değerleri yerine konmuş olarak, SI birimlerinde. Sonuçları elle kontrol etmek veya eğitim için kullanın.'],
+    ['Appendix: step-by-step calculation', 'Anhang: Schritt-für-Schritt-Berechnung', 'Bijlage: stapsgewijze berekening', 'Ek: adım adım hesaplama'],
+    ['References', 'Literatur', 'Referenties', 'Kaynaklar'],
+    ['Custom', 'Benutzerdefiniert', 'Aangepast', 'Özel'],
+    ['Channel geometry', 'Kanalgeometrie', 'Kanaalgeometrie', 'Kanal geometrisi'],
+    ['Flow area and wetted perimeter', 'Strömungsquerschnitt und benetzter Umfang', 'Doorstroomoppervlak en natte omtrek', 'Akış kesiti ve ıslak çevre'],
+    ['a = channel width, b = channel depth.', 'a = Kanalbreite, b = Kanaltiefe.', 'a = kanaalbreedte, b = kanaaldiepte.', 'a = kanal genişliği, b = kanal derinliği.'],
+    ['Aspect ratio', 'Seitenverhältnis', 'Aspectverhouding', 'En-boy oranı'],
+    ['Channel pitch and wall', 'Kanalteilung und Steg', 'Kanaalsteek en wand', 'Kanal aralığı ve et kalınlığı'],
+    ['S = plate size across the channels, e = edge margin.', 'S = Plattenmaß quer zu den Kanälen, e = Randabstand.', 'S = plaatmaat dwars op de kanalen, e = randmarge.', 'S = kanallara dik plaka ölçüsü, e = kenar payı.'],
+    ['n = passes per circuit, L_{s} = straight pass length, r_{b} = bend radius.', 'n = Durchgänge je Kreis, L_{s} = gerade Durchgangslänge, r_{b} = Bogenradius.', 'n = passages per circuit, L_{s} = lengte van een rechte passage, r_{b} = bochtstraal.', 'n = devre başına geçiş, L_{s} = düz geçiş uzunluğu, r_{b} = dönüş yarıçapı.'],
+    ['w_{h} = header width.', 'w_{h} = Verteilerbreite.', 'w_{h} = verdelerbreedte.', 'w_{h} = kollektör genişliği.'],
+    ['Coolant properties and flow', 'Kühlmitteleigenschaften und Durchfluss', 'Eigenschappen en debiet van het koelmiddel', 'Soğutucu özellikleri ve akış'],
+    ['Mean coolant temperature', 'Mittlere Kühlmitteltemperatur', 'Gemiddelde koelmiddeltemperatuur', 'Ortalama soğutucu sıcaklığı'],
+    ['Properties are evaluated at T_{m}; T_{out} comes from the energy balance below, so the solver iterates.', 'Die Stoffwerte gelten bei T_{m}; T_{out} folgt aus der Energiebilanz unten, daher rechnet der Löser iterativ.', 'De eigenschappen gelden bij T_{m}; T_{out} volgt uit de energiebalans hieronder, dus de solver itereert.', 'Özellikler T_{m} sıcaklığında alınır; T_{out} aşağıdaki enerji dengesinden gelir, bu yüzden çözücü iterasyon yapar.'],
+    ['Properties of {fluid} at T_{m}', 'Stoffwerte von {fluid} bei T_{m}', 'Eigenschappen van {fluid} bij T_{m}', 'T_{m} sıcaklığında {fluid} özellikleri'],
+    ['Density at the inlet temperature.', 'Dichte bei Eintrittstemperatur.', 'Dichtheid bij de inlaattemperatuur.', 'Giriş sıcaklığındaki yoğunluk.'],
+    ['Standard flow converted to molar flow ṅ; M = molar mass.', 'Normvolumenstrom in Molenstrom ṅ umgerechnet; M = molare Masse.', 'Normdebiet omgerekend naar molair debiet ṅ; M = molaire massa.', 'Standart debi mol debisine ṅ çevrilir; M = mol kütlesi.'],
+    ['Pump operating point', 'Pumpenbetriebspunkt', 'Werkpunt van de pomp', 'Pompa çalışma noktası'],
+    ['Solved numerically (bisection) where the pump curve meets the system curve.', 'Numerisch gelöst (Bisektion) im Schnittpunkt von Pumpen- und Anlagenkennlinie.', 'Numeriek opgelost (bisectie) waar de pompcurve de systeemcurve snijdt.', 'Pompa eğrisinin sistem eğrisini kestiği noktada sayısal olarak (ikiye bölme) çözülür.'],
+    ['Flow per channel', 'Durchfluss je Kanal', 'Debiet per kanaal', 'Kanal başına debi'],
+    ['Serpentine: each circuit carries an equal share.', 'Mäander: jeder Kreis führt den gleichen Anteil.', 'Meander: elk circuit voert een gelijk deel.', 'Serpantin: her devre eşit pay taşır.'],
+    ['Average channel; the manifold model below gives the real split.', 'Mittlerer Kanal; das Verteilermodell unten liefert die tatsächliche Aufteilung.', 'Gemiddeld kanaal; het verdelermodel hieronder geeft de werkelijke verdeling.', 'Ortalama kanal; gerçek dağılımı aşağıdaki kollektör modeli verir.'],
+    ['Laminar below 2300, turbulent above 4000, blended in between.', 'Laminar unter 2300, turbulent über 4000, dazwischen interpoliert.', 'Laminair onder 2300, turbulent boven 4000, daartussen geïnterpoleerd.', '2300 altında laminer, 4000 üstünde türbülanslı, arada geçişli.'],
+    ['Compressibility is negligible below Ma ≈ 0.3.', 'Unterhalb Ma ≈ 0,3 ist die Kompressibilität vernachlässigbar.', 'Onder Ma ≈ 0,3 is samendrukbaarheid verwaarloosbaar.', 'Ma ≈ 0,3 altında sıkıştırılabilirlik ihmal edilebilir.'],
+    ['Heat transfer coefficient', 'Wärmeübergangskoeffizient', 'Warmteoverdrachtscoëfficiënt', 'Isı taşınım katsayısı'],
+    ['Fully developed laminar Nu', 'Voll ausgebildete laminare Nu', 'Volledig ontwikkelde laminaire Nu', 'Tam gelişmiş laminer Nu'],
+    ['Circular tube, constant heat flux (H1).', 'Kreisrohr, konstante Wärmestromdichte (H1).', 'Ronde buis, constante warmtestroomdichtheid (H1).', 'Dairesel boru, sabit ısı akısı (H1).'],
+    ['Shah & London, rectangular duct, constant heat flux (H1).', 'Shah & London, Rechteckkanal, konstante Wärmestromdichte (H1).', 'Shah & London, rechthoekig kanaal, constante warmtestroomdichtheid (H1).', 'Shah & London, dikdörtgen kanal, sabit ısı akısı (H1).'],
+    ['Thermal entry length correction', 'Korrektur für den thermischen Einlauf', 'Correctie voor de thermische inloop', 'Isıl giriş bölgesi düzeltmesi'],
+    ['Hausen form, averaged over one straight pass L_{s}.', 'Hausen-Form, gemittelt über einen geraden Durchgang L_{s}.', 'Hausen-vorm, gemiddeld over één rechte passage L_{s}.', 'Hausen biçimi, bir düz geçiş L_{s} boyunca ortalanmış.'],
+    ['Turbulent friction factor (Haaland)', 'Turbulente Rohrreibungszahl (Haaland)', 'Turbulente wrijvingsfactor (Haaland)', 'Türbülanslı sürtünme faktörü (Haaland)'],
+    ['ε_{r} = surface roughness.', 'ε_{r} = Oberflächenrauheit.', 'ε_{r} = oppervlakteruwheid.', 'ε_{r} = yüzey pürüzlülüğü.'],
+    ['Gnielinski correlation', 'Gnielinski-Korrelation', 'Gnielinski-correlatie', 'Gnielinski korelasyonu'],
+    ['Last factor: short-duct entry correction.', 'Letzter Faktor: Einlaufkorrektur für kurze Kanäle.', 'Laatste factor: inloopcorrectie voor korte kanalen.', 'Son çarpan: kısa kanal giriş düzeltmesi.'],
+    ['Transitional blend', 'Interpolation im Übergangsbereich', 'Interpolatie in het overgangsgebied', 'Geçiş bölgesi ara değeri'],
+    ['Fin efficiency of the channel walls', 'Rippenwirkungsgrad der Kanalwände', 'Vinrendement van de kanaalwanden', 'Kanal duvarlarının kanatçık verimi'],
+    ['The walls between channels act as fins of height H, cooled on both faces; k_{s} = plate conductivity ({mat}).', 'Die Stege zwischen den Kanälen wirken als beidseitig gekühlte Rippen der Höhe H; k_{s} = Wärmeleitfähigkeit der Platte ({mat}).', 'De wanden tussen de kanalen werken als aan beide zijden gekoelde vinnen met hoogte H; k_{s} = geleidbaarheid van de plaat ({mat}).', 'Kanallar arasındaki duvarlar, iki yüzü soğutulan H yüksekliğinde kanatçıklar gibi davranır; k_{s} = plaka iletkenliği ({mat}).'],
+    ['Effective wetted perimeter', 'Wirksamer benetzter Umfang', 'Effectieve natte omtrek', 'Etkin ıslak çevre'],
+    ['Heated floor, two fin-effective side walls and the far wall (reached through two fins).', 'Beheizter Boden, zwei Seitenwände mit Rippenwirkung und die gegenüberliegende Wand (über zwei Rippen erreicht).', 'Verwarmde bodem, twee zijwanden met vinwerking en de tegenoverliggende wand (bereikt via twee vinnen).', 'Isıtılan taban, kanatçık etkili iki yan duvar ve karşı duvar (iki kanatçık üzerinden ulaşılır).'],
+    ['Effective heat transfer area', 'Wirksame Wärmeübertragungsfläche', 'Effectief warmteoverdragend oppervlak', 'Etkin ısı transfer alanı'],
+    ['Thermal resistance network', 'Netzwerk der Wärmewiderstände', 'Netwerk van thermische weerstanden', 'Isıl direnç ağı'],
+    ['Convection resistance', 'Konvektionswiderstand', 'Convectieweerstand', 'Taşınım direnci'],
+    ['Coolant heat capacity resistance', 'Wärmekapazitätswiderstand des Kühlmittels', 'Warmtecapaciteitsweerstand van het koelmiddel', 'Soğutucu ısı kapasitesi direnci'],
+    ['Coolant temperature rise per watt.', 'Kühlmittelerwärmung je Watt.', 'Temperatuurstijging van het koelmiddel per watt.', 'Watt başına soğutucu sıcaklık artışı.'],
+    ['NTU and effectiveness', 'NTU und Wirkungsgrad', 'NTU en effectiviteit', 'NTU ve etkinlik'],
+    ['Heated-face wall conduction', 'Wärmeleitung durch die Wand der beheizten Seite', 'Geleiding door de wand aan de verwarmde zijde', 'Isıtılan yüzey etinden iletim'],
+    ['Spreading to the channels', 'Wärmespreizung zu den Kanälen', 'Spreiding naar de kanalen', 'Kanallara yayılma'],
+    ['Heat that lands above a wall or an uncooled edge must travel sideways a distance s.', 'Wärme, die über einem Steg oder einem ungekühlten Rand eintritt, muss seitlich die Strecke s zurücklegen.', 'Warmte die boven een wand of een ongekoelde rand binnenkomt, moet zijwaarts een afstand s afleggen.', 'Bir duvarın veya soğutulmayan kenarın üzerine gelen ısı yanlamasına s mesafesi kat etmelidir.'],
+    ['Lateral conduction weight', 'Gewichtung der Querleitung', 'Weging van de zijdelingse geleiding', 'Yanal iletim ağırlığı'],
+    ['w = 1: plate cannot even out the coolant temperature rise (uniform heat flux); w = 0: isothermal plate.', 'w = 1: Die Platte gleicht die Kühlmittelerwärmung nicht aus (gleichmäßige Wärmestromdichte); w = 0: isotherme Platte.', 'w = 1: de plaat kan de temperatuurstijging van het koelmiddel niet vereffenen (uniforme warmtestroom); w = 0: isotherme plaat.', 'w = 1: plaka soğutucu sıcaklık artışını dengeleyemez (düzgün ısı akısı); w = 0: izotermal plaka.'],
+    ['Total thermal resistance', 'Gesamter Wärmewiderstand', 'Totale thermische weerstand', 'Toplam ısıl direnç'],
+    ['Peak heated surface to coolant inlet.', 'Heißeste Stelle der beheizten Fläche bis Kühlmitteleintritt.', 'Heetste punt van het verwarmde vlak tot koelmiddelinlaat.', 'Isıtılan yüzeyin en sıcak noktasından soğutucu girişine.'],
+    ['Peak surface temperature (1D)', 'Maximale Oberflächentemperatur (1D)', 'Maximale oppervlaktetemperatuur (1D)', 'En yüksek yüzey sıcaklığı (1B)'],
+    ['Heat dissipation capacity (1D)', 'Wärmeabfuhrleistung (1D)', 'Warmteafvoercapaciteit (1D)', 'Isı atma kapasitesi (1B)'],
+    ['Coolant outlet temperature', 'Kühlmittelaustrittstemperatur', 'Uitlaattemperatuur van het koelmiddel', 'Soğutucu çıkış sıcaklığı'],
+    ['Energy balance: all heat leaves with the coolant.', 'Energiebilanz: die gesamte Wärme geht ins Kühlmittel.', 'Energiebalans: alle warmte verlaat de plaat met het koelmiddel.', 'Enerji dengesi: ısının tamamı soğutucuyla çıkar.'],
+    ['2D plate model', '2D-Plattenmodell', '2D-plaatmodel', '2B plaka modeli'],
+    ['Solved numerically on a {nx} × {ny} grid; the headline result uses this model because it resolves edges and hot spots that the 1D network averages out.', 'Numerisch auf einem {nx} × {ny}-Gitter gelöst; das Hauptergebnis stammt aus diesem Modell, weil es Ränder und Hotspots auflöst, die das 1D-Netzwerk mittelt.', 'Numeriek opgelost op een {nx} × {ny}-raster; het hoofdresultaat gebruikt dit model omdat het randen en hotspots oplost die het 1D-netwerk uitmiddelt.', '{nx} × {ny} ızgarada sayısal olarak çözülür; ana sonuç bu modelden gelir çünkü 1B ağın ortaladığı kenarları ve sıcak noktaları çözer.'],
+    ['Hottest component', 'Heißestes Bauteil', 'Heetste component', 'En sıcak bileşen'],
+    ['TIM resistance', 'TIM-Widerstand', 'TIM-weerstand', 'TIM direnci'],
+    ['R_{c} = contact resistance of both interfaces (m²K/W).', 'R_{c} = Kontaktwiderstand beider Grenzflächen (m²K/W).', 'R_{c} = contactweerstand van beide grensvlakken (m²K/W).', 'R_{c} = her iki arayüzün temas direnci (m²K/W).'],
+    ['Case temperature', 'Gehäusetemperatur', 'Behuizingtemperatuur', 'Kasa sıcaklığı'],
+    ['T̄_{plate} = mean plate temperature under the footprint, from the 2D model.', 'T̄_{plate} = mittlere Plattentemperatur unter der Grundfläche, aus dem 2D-Modell.', 'T̄_{plate} = gemiddelde plaattemperatuur onder de footprint, uit het 2D-model.', 'T̄_{plate} = bileşen tabanı altındaki ortalama plaka sıcaklığı, 2B modelden.'],
+    ['Junction temperature', 'Sperrschichttemperatur', 'Junctietemperatuur', 'Jonksiyon sıcaklığı'],
+    ['Margin to limit', 'Abstand zum Grenzwert', 'Marge tot de limiet', 'Sınıra kalan pay'],
+    ['Fully developed laminar f·Re', 'Voll ausgebildetes laminares f·Re', 'Volledig ontwikkelde laminaire f·Re', 'Tam gelişmiş laminer f·Re'],
+    ['Shah & London, Darcy friction factor.', 'Shah & London, Darcy-Reibungszahl.', 'Shah & London, Darcy-wrijvingsfactor.', 'Shah & London, Darcy sürtünme faktörü.'],
+    ['Apparent friction factor (developing flow)', 'Scheinbare Reibungszahl (Einlaufströmung)', 'Schijnbare wrijvingsfactor (zich ontwikkelende stroming)', 'Görünür sürtünme faktörü (gelişmekte olan akış)'],
+    ['Shah (1978): includes the extra loss of the developing velocity profile.', 'Shah (1978): enthält den Zusatzverlust des sich entwickelnden Geschwindigkeitsprofils.', 'Shah (1978): bevat het extra verlies van het zich ontwikkelende snelheidsprofiel.', 'Shah (1978): gelişmekte olan hız profilinin ek kaybını içerir.'],
+    ['Friction factor', 'Reibungszahl', 'Wrijvingsfactor', 'Sürtünme faktörü'],
+    ['Haaland, as above.', 'Haaland, wie oben.', 'Haaland, zoals hierboven.', 'Haaland, yukarıdaki gibi.'],
+    ['Dynamic pressure', 'Staudruck', 'Dynamische druk', 'Dinamik basınç'],
+    ['Average channel with a uniform split.', 'Mittlerer Kanal bei gleichmäßiger Aufteilung.', 'Gemiddeld kanaal bij gelijkmatige verdeling.', 'Eşit dağılımda ortalama kanal.'],
+    ['Channel entry and exit', 'Kanalein- und -austritt', 'Kanaalinlaat en -uitlaat', 'Kanal girişi ve çıkışı'],
+    ['180° bends (Darby 3-K)', '180°-Bögen (Darby 3-K)', 'Bochten van 180° (Darby 3-K)', '180° dönüşler (Darby 3-K)'],
+    ['D_{n} = nominal diameter in inches; K_{i} = 0.35 for tight bends (r/D_{h} < 1), else 0.10.', 'D_{n} = Nenndurchmesser in Zoll; K_{i} = 0,35 für enge Bögen (r/D_{h} < 1), sonst 0,10.', 'D_{n} = nominale diameter in inch; K_{i} = 0,35 voor krappe bochten (r/D_{h} < 1), anders 0,10.', 'D_{n} = inç cinsinden anma çapı; K_{i} = dar dönüşlerde (r/D_{h} < 1) 0,35, aksi halde 0,10.'],
+    ['Inlet and outlet ports', 'Ein- und Austrittsanschlüsse', 'Inlaat- en uitlaatpoorten', 'Giriş ve çıkış portları'],
+    ['K = 1.5 per port (90° turn plus expansion or contraction).', 'K = 1,5 je Anschluss (90°-Umlenkung plus Erweiterung bzw. Verengung).', 'K = 1,5 per poort (bocht van 90° plus expansie of contractie).', 'Port başına K = 1,5 (90° dönüş artı genişleme veya daralma).'],
+    ['Total pressure drop', 'Gesamter Druckverlust', 'Totale drukval', 'Toplam basınç düşümü'],
+    ['Manifold network and total', 'Verteilernetz und Summe', 'Verdelernetwerk en totaal', 'Kollektör ağı ve toplam'],
+    ['Solved numerically: header friction and momentum against each channel\'s own Δp(q) curve, iterated until the channel flows add up to the total.', 'Numerisch gelöst: Reibung und Impuls in den Verteilern gegen die eigene Δp(q)-Kennlinie jedes Kanals, iteriert bis die Kanaldurchflüsse den Gesamtdurchfluss ergeben.', 'Numeriek opgelost: wrijving en impuls in de verdelers tegen de eigen Δp(q)-curve van elk kanaal, geïtereerd tot de kanaaldebieten optellen tot het totaal.', 'Sayısal olarak çözülür: kollektör sürtünmesi ve momentumu her kanalın kendi Δp(q) eğrisine karşı, kanal debilerinin toplamı toplam debiye eşit olana dek iterasyonla.'],
+    ['Shaft power = P_{hyd} / pump efficiency.', 'Wellenleistung = P_{hyd} / Pumpenwirkungsgrad.', 'Asvermogen = P_{hyd} / pomprendement.', 'Mil gücü = P_{hyd} / pompa verimi.'],
   ];
 
   // Blocks with inline markup, translated as a whole (static, trusted content).
   const HTML = {
+    help: {
+      en: `<h2 id="help-title">How to use</h2>
+<p>Work through the inputs on the left from top to bottom; the results on the right update as you type.</p>
+<ol><li><b>Start from an example.</b> Pick an application preset in the toolbar and adapt it. You can switch SI/Imperial units and the language at any time.</li><li><b>Plate.</b> Length, width, thickness and material. Higher conductivity spreads heat better between the channels.</li><li><b>Flow layout.</b> Serpentine: one long channel (or a few circuits), even cooling but higher pressure drop. Parallel Z/U: many short channels fed by headers, low pressure drop; check the flow distribution card.</li><li><b>Channel section.</b> Round, square or rectangular. Channel depth plus the heated-face wall must fit within the plate thickness.</li><li><b>Coolant.</b> Fluid, inlet temperature and pressure, and either a fixed flow rate or a pump curve; with a pump curve the operating point is found automatically.</li><li><b>Heat input.</b> Uniform heat: enter a power to get the peak temperature, or a maximum surface temperature to get the capacity. Heat sources: add components with power, footprint, TIM and R<sub>jc</sub>, and drag them on the plate layout.</li></ol>
+<h3>Reading the results</h3>
+<ul><li>The headline shows the capacity, peak temperature or hottest junction. Warnings and notes point out design problems.</li><li>Hover over the 2D map to read local temperatures. The component table lists plate, case and junction temperatures with the margin to each limit.</li><li>The breakdown bars show which thermal resistance or pressure loss dominates: improve the largest one first.</li><li>The <a href="#steps" data-open-steps>step-by-step calculation</a> shows every formula with your numbers.</li></ul>
+<h3>Typical values</h3>
+<ul><li>Channel velocity for water/glycol: 0.5–2 m/s (aluminium ≲ 2 m/s against erosion).</li><li>Coolant temperature rise: 3–10 K for good temperature uniformity.</li><li>TIM: thermal grease ≈ 0.05–0.2 K·cm²/W, gap pads ≈ 1–5 K·cm²/W.</li></ul>
+<h3>Saving and sharing</h3>
+<p>Your design is saved in this browser automatically. <b>Copy link</b> creates a URL with all inputs, <b>Export PDF</b> writes a design report including the calculation steps, and <b>Print</b> prints the page.</p>
+<p class="about-meta">Results are engineering estimates for concept sizing (about ±15–30 %). Validate final designs by CFD or test.</p>`,
+      de: `<h2 id="help-title">So geht’s</h2>
+<p>Arbeiten Sie die Eingaben links von oben nach unten durch; die Ergebnisse rechts werden sofort aktualisiert.</p>
+<ol><li><b>Mit einem Beispiel beginnen.</b> Wählen Sie in der Werkzeugleiste eine Anwendungsvorlage und passen Sie sie an. SI/Imperial und Sprache lassen sich jederzeit umschalten.</li><li><b>Platte.</b> Länge, Breite, Dicke und Werkstoff. Eine höhere Wärmeleitfähigkeit verteilt die Wärme besser zwischen den Kanälen.</li><li><b>Strömungsführung.</b> Mäander: ein langer Kanal (oder wenige Kreise), gleichmäßige Kühlung, aber höherer Druckverlust. Parallel Z/U: viele kurze Kanäle über Verteiler, geringer Druckverlust; prüfen Sie die Karte zur Strömungsverteilung.</li><li><b>Kanalquerschnitt.</b> Rund, quadratisch oder rechteckig. Kanaltiefe plus Wand der beheizten Seite müssen in die Plattendicke passen.</li><li><b>Kühlmittel.</b> Medium, Eintrittstemperatur und -druck sowie ein fester Durchfluss oder eine Pumpenkennlinie; mit Kennlinie wird der Betriebspunkt automatisch bestimmt.</li><li><b>Wärmeeintrag.</b> Gleichmäßig: Leistung eingeben für die Maximaltemperatur oder eine maximale Oberflächentemperatur für die Leistungsgrenze. Wärmequellen: Bauteile mit Leistung, Grundfläche, TIM und R<sub>jc</sub> anlegen und im Plattenlayout verschieben.</li></ol>
+<h3>Ergebnisse lesen</h3>
+<ul><li>Die Kopfzeile zeigt Leistungsgrenze, Maximaltemperatur oder heißeste Sperrschicht. Warnungen und Hinweise zeigen Auslegungsprobleme.</li><li>Fahren Sie über die 2D-Karte, um lokale Temperaturen abzulesen. Die Bauteiltabelle zeigt Platten-, Gehäuse- und Sperrschichttemperaturen mit Abstand zum Grenzwert.</li><li>Die Balken zeigen, welcher Wärmewiderstand oder Druckverlust dominiert: zuerst den größten verbessern.</li><li>Die <a href="#steps" data-open-steps>Schritt-für-Schritt-Berechnung</a> zeigt jede Formel mit Ihren Zahlen.</li></ul>
+<h3>Typische Werte</h3>
+<ul><li>Kanalgeschwindigkeit bei Wasser/Glykol: 0,5–2 m/s (Aluminium ≲ 2 m/s wegen Erosion).</li><li>Kühlmittelerwärmung: 3–10 K für eine gleichmäßige Temperatur.</li><li>TIM: Wärmeleitpaste ≈ 0,05–0,2 K·cm²/W, Gap-Pads ≈ 1–5 K·cm²/W.</li></ul>
+<h3>Speichern und teilen</h3>
+<p>Ihr Entwurf wird automatisch in diesem Browser gespeichert. <b>Link kopieren</b> erzeugt eine URL mit allen Eingaben, <b>PDF exportieren</b> einen Auslegungsbericht mit den Rechenschritten, <b>Drucken</b> druckt die Seite.</p>
+<p class="about-meta">Die Ergebnisse sind ingenieurmäßige Abschätzungen für die Vorauslegung (etwa ±15–30 %). Endgültige Auslegungen per CFD oder Versuch validieren.</p>`,
+      nl: `<h2 id="help-title">Zo werkt het</h2>
+<p>Werk de invoer links van boven naar beneden af; de resultaten rechts worden direct bijgewerkt.</p>
+<ol><li><b>Begin met een voorbeeld.</b> Kies een toepassingsvoorbeeld in de werkbalk en pas het aan. SI/Imperial en de taal kunt u altijd omschakelen.</li><li><b>Plaat.</b> Lengte, breedte, dikte en materiaal. Een hogere geleidbaarheid spreidt de warmte beter tussen de kanalen.</li><li><b>Stromingsindeling.</b> Meander: één lang kanaal (of enkele circuits), gelijkmatige koeling maar hogere drukval. Parallel Z/U: veel korte kanalen gevoed door verdelers, lage drukval; controleer de kaart met de stromingsverdeling.</li><li><b>Kanaaldoorsnede.</b> Rond, vierkant of rechthoekig. Kanaaldiepte plus de wand aan de verwarmde zijde moet binnen de plaatdikte passen.</li><li><b>Koelmiddel.</b> Medium, inlaattemperatuur en -druk, en een vast debiet of een pompcurve; met een pompcurve wordt het werkpunt automatisch bepaald.</li><li><b>Warmte-invoer.</b> Uniform: voer een vermogen in voor de piektemperatuur, of een maximale oppervlaktetemperatuur voor de capaciteit. Warmtebronnen: voeg componenten toe met vermogen, footprint, TIM en R<sub>jc</sub> en sleep ze op de plaatindeling.</li></ol>
+<h3>De resultaten lezen</h3>
+<ul><li>De kop toont de capaciteit, piektemperatuur of heetste junctie. Waarschuwingen en opmerkingen wijzen op ontwerpproblemen.</li><li>Beweeg over de 2D-kaart om lokale temperaturen af te lezen. De componententabel toont plaat-, behuizing- en junctietemperaturen met de marge tot elke limiet.</li><li>De balken tonen welke thermische weerstand of drukval domineert: verbeter eerst de grootste.</li><li>De <a href="#steps" data-open-steps>stapsgewijze berekening</a> toont elke formule met uw getallen.</li></ul>
+<h3>Typische waarden</h3>
+<ul><li>Kanaalsnelheid voor water/glycol: 0,5–2 m/s (aluminium ≲ 2 m/s vanwege erosie).</li><li>Temperatuurstijging van het koelmiddel: 3–10 K voor een gelijkmatige temperatuur.</li><li>TIM: koelpasta ≈ 0,05–0,2 K·cm²/W, gap pads ≈ 1–5 K·cm²/W.</li></ul>
+<h3>Opslaan en delen</h3>
+<p>Uw ontwerp wordt automatisch in deze browser opgeslagen. <b>Link kopiëren</b> maakt een URL met alle invoer, <b>PDF exporteren</b> een ontwerprapport met de rekenstappen, en <b>Afdrukken</b> drukt de pagina af.</p>
+<p class="about-meta">De resultaten zijn technische schattingen voor conceptontwerp (ongeveer ±15–30 %). Valideer definitieve ontwerpen met CFD of test.</p>`,
+      tr: `<h2 id="help-title">Nasıl kullanılır</h2>
+<p>Soldaki girdileri yukarıdan aşağıya doldurun; sağdaki sonuçlar siz yazdıkça güncellenir.</p>
+<ol><li><b>Bir örnekle başlayın.</b> Araç çubuğundan bir uygulama örneği seçin ve uyarlayın. SI/Imperial birimleri ve dili istediğiniz an değiştirebilirsiniz.</li><li><b>Plaka.</b> Uzunluk, genişlik, kalınlık ve malzeme. Daha yüksek iletkenlik ısıyı kanallar arasında daha iyi yayar.</li><li><b>Akış düzeni.</b> Serpantin: tek uzun kanal (veya birkaç devre), düzgün soğutma ama daha yüksek basınç düşümü. Paralel Z/U: kollektörlerle beslenen çok sayıda kısa kanal, düşük basınç düşümü; akış dağılımı kartını kontrol edin.</li><li><b>Kanal kesiti.</b> Dairesel, kare veya dikdörtgen. Kanal derinliği ile ısıtılan yüzey eti plaka kalınlığına sığmalıdır.</li><li><b>Soğutucu.</b> Akışkan, giriş sıcaklığı ve basıncı ile sabit debi veya pompa eğrisi; pompa eğrisiyle çalışma noktası otomatik bulunur.</li><li><b>Isı girişi.</b> Düzgün ısı: en yüksek sıcaklık için güç, kapasite için en yüksek yüzey sıcaklığı girin. Isı kaynakları: güç, taban alanı, TIM ve R<sub>jc</sub> ile bileşen ekleyin ve plaka yerleşiminde sürükleyin.</li></ol>
+<h3>Sonuçları okuma</h3>
+<ul><li>Başlık kapasiteyi, en yüksek sıcaklığı veya en sıcak jonksiyonu gösterir. Uyarılar ve notlar tasarım sorunlarına işaret eder.</li><li>Yerel sıcaklıkları okumak için 2B haritanın üzerine gelin. Bileşen tablosu plaka, kasa ve jonksiyon sıcaklıklarını sınıra kalan payla birlikte listeler.</li><li>Çubuklar hangi ısıl direncin veya basınç kaybının baskın olduğunu gösterir: önce en büyüğünü iyileştirin.</li><li><a href="#steps" data-open-steps>Adım adım hesaplama</a> her formülü sizin değerlerinizle gösterir.</li></ul>
+<h3>Tipik değerler</h3>
+<ul><li>Su/glikol için kanal hızı: 0,5–2 m/s (alüminyumda erozyona karşı ≲ 2 m/s).</li><li>Soğutucu sıcaklık artışı: iyi sıcaklık düzgünlüğü için 3–10 K.</li><li>TIM: termal macun ≈ 0,05–0,2 K·cm²/W, gap pad ≈ 1–5 K·cm²/W.</li></ul>
+<h3>Kaydetme ve paylaşma</h3>
+<p>Tasarımınız bu tarayıcıda otomatik kaydedilir. <b>Bağlantıyı kopyala</b> tüm girdileri içeren bir URL oluşturur, <b>PDF dışa aktar</b> hesaplama adımlarını içeren bir tasarım raporu yazar, <b>Yazdır</b> sayfayı yazdırır.</p>
+<p class="about-meta">Sonuçlar ön boyutlandırma için mühendislik tahminidir (yaklaşık ±%15–30). Nihai tasarımları CFD veya testle doğrulayın.</p>`,
+    },
     about: {
       en: `<div class="about-head"><img src="icons/favicon.svg" alt=""><div><h2 id="about-title">Cold Plate Calculator</h2><p>Version 2 · by Eren Tozlu</p></div></div>
 <p>A free, browser-based tool for first-pass sizing of liquid- and gas-cooled cold plates for power electronics, batteries and fuel-cell systems. It couples a 2D conduction model of the plate with 1D channel hydraulics, pump matching and manifold flow distribution. All calculations run in your browser.</p>

@@ -491,7 +491,7 @@
       finally { btn.disabled = false; btn.textContent = label; }
     });
     $('#print').addEventListener('click', () => {
-      const notes = $('.notes');
+      const notes = $('.notes:not(.steps)');
       const wasOpen = notes.open;
       notes.open = true;
       window.print();
@@ -500,15 +500,34 @@
     window.addEventListener('resize', () => schedule());
     matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => schedule());
 
-    // About dialog: toolbar button, footer link and #about deep link.
-    const about = $('#about');
-    const openAbout = (e) => { if (e) e.preventDefault(); if (!about.open) about.showModal(); };
-    $('#about-open').addEventListener('click', openAbout);
-    $('#about-link').addEventListener('click', openAbout);
-    about.addEventListener('click', (e) => { if (e.target === about) about.close(); }); // backdrop click
-    about.addEventListener('close', () => { if (location.hash === '#about') history.replaceState(null, '', location.pathname + location.search); });
-    window.addEventListener('hashchange', () => { if (location.hash === '#about') openAbout(); });
-    if (location.hash === '#about') openAbout();
+    // Dialogs (Help, About): toolbar buttons, footer links and #help / #about deep links.
+    const dialogs = { help: $('#help'), about: $('#about') };
+    const openDialog = (id) => {
+      const d = dialogs[id];
+      if (!d || d.open) return;
+      Object.values(dialogs).forEach((o) => { if (o.open) o.close(); });
+      d.showModal();
+    };
+    for (const el of document.querySelectorAll('[data-dialog]')) el.addEventListener('click', (e) => { e.preventDefault(); openDialog(el.dataset.dialog); });
+    for (const d of Object.values(dialogs)) {
+      d.addEventListener('click', (e) => { if (e.target === d) d.close(); }); // backdrop click
+      d.addEventListener('close', () => { if (location.hash === '#' + d.id) history.replaceState(null, '', location.pathname + location.search); });
+    }
+    // Help links to the step-by-step card.
+    dialogs.help.addEventListener('click', (e) => {
+      const a = e.target.closest('[data-open-steps]');
+      if (!a) return;
+      e.preventDefault();
+      dialogs.help.close();
+      const card = $('#steps-card');
+      card.open = true;
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    const fromHash = () => openDialog(location.hash.slice(1));
+    window.addEventListener('hashchange', fromHash);
+    fromHash();
+
+    $('#steps-card').addEventListener('toggle', () => renderSteps(lastResult));
 
     // Light/dark toggle: starts from the system setting, then remembers the choice.
     $('#theme').addEventListener('click', () => {
@@ -611,6 +630,7 @@
     renderDistribution(res);
     renderMetrics(res);
     renderBars(res);
+    renderSteps(res);
     renderCharts(res);
   }
 
@@ -1018,7 +1038,7 @@
   }
 
   // Read-only hooks for the PDF report.
-  window.App = {
+  window.App = { calcSteps,
     state: () => state,
     result: () => lastResult,
     map: () => lastMap,
@@ -1029,6 +1049,44 @@
     metricItems, fmtPower, shareUrl, toast,
     rerender: update,
   };
+
+  /** Calculation steps for the current design (shared by the page and the PDF report). */
+  function calcSteps(res) {
+    return Steps.build(calcState, res, lastMap, lastOp, { t, locale: I18N.locale, format: (q, v) => fmt(q, v) });
+  }
+
+  function renderSteps(res) {
+    const card = $('#steps-card'), box = $('#steps');
+    if (!card.open) return; // built on demand
+    box.textContent = '';
+    if (!res || !res.ok) { box.textContent = t('No results — resolve the errors above.'); return; }
+    const st = calcSteps(res);
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+    let k = 0;
+    st.sections.forEach((sec, i) => {
+      const h = el('h3', 'steps-h', `${i + 1}. ${sec.title}`);
+      if (sec.intro) h.appendChild(el('span', 'steps-intro', ' · ' + sec.intro));
+      box.appendChild(h);
+      for (const s of sec.steps) {
+        const row = el('div', 'calc-step');
+        row.appendChild(el('div', 'calc-n', String(++k)));
+        const body = el('div', 'calc-body');
+        body.appendChild(el('div', 'calc-t', s.title));
+        // Formula strings are escaped by Steps.toHtml before the sub/superscript markup is applied.
+        for (const [cls, txt] of [['eq', s.f], ['eq eq-sub', s.sub], ['eq eq-res', s.r]]) {
+          if (!txt) continue;
+          const d = el('div', cls); d.innerHTML = Steps.toHtml(txt); body.appendChild(d);
+        }
+        if (s.note) { const d = el('div', 'calc-note'); d.innerHTML = Steps.toHtml(s.note); body.appendChild(d); }
+        row.appendChild(body);
+        box.appendChild(row);
+      }
+    });
+    box.appendChild(el('h3', 'steps-h', t('References')));
+    const ol = el('ol', 'steps-refs');
+    st.references.forEach((r) => ol.appendChild(el('li', '', r)));
+    box.appendChild(ol);
+  }
 
   // ---------- Init ----------
   I18N.init();

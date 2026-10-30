@@ -13,6 +13,8 @@ A browser-based tool for sizing liquid- and gas-cooled cold plates for **power e
 - Thermal resistance breakdown (coolant capacity, convection, wall conduction, lateral spreading)
 - Reynolds number, flow regime, heat-transfer coefficient, fin efficiency and NTU
 - Heat and pressure-drop curves against flow rate
+- **Step-by-step calculation**: every formula of the 1D model with the current design's numbers substituted (geometry, properties, Re, Nu, fin efficiency, resistance network, component temperatures, pressure drop), with literature references. Also included as an appendix in the PDF report, for design reviews and teaching
+- A short **Help** guide (how to use, reading the results, typical values) and an **About** page
 - Design warnings: erosion velocity, freezing and boiling margins, manifold maldistribution, Mach number and gas compressibility, material compatibility
 
 Available in **English, German, Dutch and Turkish**: the interface, design checks and PDF report, with local number formatting. Switches between **SI and Imperial** units, and between light and dark themes. It can be installed to a phone's home screen (iOS app icon and web app manifest included). **Export PDF** downloads a design report (inputs, results, plate drawing, breakdowns, performance curves, design checks), and every design can be shared as a link.
@@ -91,6 +93,7 @@ js/i18n.js          translations (EN, DE, NL, TR) and page-text translation
 js/data.js          fluids, materials, presets
 js/physics.js       1D thermal / hydraulic solver (also runs in Node)
 js/physics2d.js     2D plate temperature model with heat sources (also runs in Node)
+js/steps.js         step-by-step calculation: formulas with substituted values (also runs in Node)
 js/drawing.js       plate top view and cross-section (SVG)
 js/charts.js        performance curves (SVG)
 js/report.js        PDF design report (jsPDF, loaded on demand)
@@ -102,7 +105,10 @@ icons/              favicon (SVG/PNG), iOS apple-touch-icon, PWA icons
 ## Roadmap
 
 - ~~v2: 2D temperature map, discrete heat sources, TIM layer~~ (done)
+- ~~Step-by-step calculation with formulas and references~~ (done)
 - Side-by-side design comparison, parameter sweeps, CSV export
+- Inverse sizing (minimum flow or pressure drop for a temperature limit)
+- Transient model (fast charge, overload and pulsed loads)
 - Pin fins and turbulators
 
 ## Author and license

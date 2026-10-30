@@ -46,17 +46,21 @@
     }
     return fontCache[file];
   }
-  /** Use an embedded Unicode font when the language needs it; falls back to Helvetica with transliteration. */
+  /**
+   * Embed DejaVu Sans: always for the formulas of the calculation appendix (Greek letters, ṁ, √),
+   * and for the body text in Turkish. Falls back to Helvetica with transliteration.
+   */
+  let MATH = 'helvetica', mathUnicode = false;
   async function setupFont(pdf) {
-    FONT = 'helvetica'; unicode = false;
-    if (I18N.lang !== 'tr') return;
+    FONT = 'helvetica'; unicode = false; MATH = 'helvetica'; mathUnicode = false;
     try {
       const [reg, bold] = await Promise.all([fetchFontBase64('DejaVuSans.ttf'), fetchFontBase64('DejaVuSans-Bold.ttf')]);
       pdf.addFileToVFS('DejaVuSans.ttf', reg);
       pdf.addFont('DejaVuSans.ttf', 'DejaVu', 'normal');
       pdf.addFileToVFS('DejaVuSans-Bold.ttf', bold);
       pdf.addFont('DejaVuSans-Bold.ttf', 'DejaVu', 'bold');
-      FONT = 'DejaVu'; unicode = true;
+      MATH = 'DejaVu'; mathUnicode = true;
+      if (I18N.lang === 'tr') { FONT = 'DejaVu'; unicode = true; }
     } catch (e) {
       console.warn('Unicode font unavailable, transliterating', e);
     }
@@ -66,6 +70,98 @@
   // The built-in PDF fonts only cover WinAnsi; map the few symbols we use outside it.
   const SUBS = { '≈': '~', '₂': '2', '≤': '<=', '≥': '>=', 'ρ': 'rho', 'μ': 'µ', '→': '->', 'ε': 'eps', 'Δ': 'd', '−': '-', '…': '...', '–': '-', '—': '-', 'Ø': 'Ø', ' ': ' ', ' ': ' ' };
   const clean = (str) => (unicode ? String(str) : String(str).replace(/[şŞğĞıİ]/g, (c) => TR_ASCII[c]).replace(/[≈₂≤≥ρμ→εΔ−…–—  ]/g, (c) => SUBS[c]));
+
+  // Formula symbols outside WinAnsi, for the Helvetica fallback.
+  const MATH_SUBS = { 'π': 'pi', 'η': 'eta', 'α': 'alpha', 'ε': 'eps', 'μ': 'mu', 'ρ': 'rho', 'Δ': 'd', '√': 'sqrt', '∇': 'grad ', 'ṁ': 'm', 'ṅ': 'n', '̇': '', '̄': '', '″': '"',
+    '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁻': '-', '⁺': '+', '−': '-', '→': '->', '½': '1/2' };
+  const mathClean = (str) => (mathUnicode ? String(str) : clean(String(str).replace(/[πηαεμρΔ√∇ṁṅ̇̄″⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺−→]/g, (c) => MATH_SUBS[c])));
+
+  /**
+   * Draw formula markup (_{sub}, ^{sup}) with real sub/superscripts, wrapping at spaces.
+   * Returns the height used [mm]; with dry = true it only measures.
+   */
+  function richText(pdf, markup, x, y, size, maxW, style = 'normal', dry = false) {
+    const LH = size * 0.3528 * 1.35;
+    const words = String(markup).split(/( +)/).filter((w) => w.length);
+    const segs = (word) => word.split(/(_\{[^}]*\}|\^\{[^}]*\})/).filter(Boolean).map((p) => {
+      const m = p.match(/^([_^])\{([^}]*)\}$/);
+      return m ? { txt: mathClean(m[2]), mode: m[1] } : { txt: mathClean(p), mode: '' };
+    });
+    const width = (ss) => ss.reduce((a, g) => { pdf.setFontSize(g.mode ? size * 0.7 : size); return a + pdf.getTextWidth(g.txt); }, 0);
+    pdf.setFont(MATH, style);
+    let cx = x, cy = y, lines = 1;
+    for (const w of words) {
+      const ss = segs(w), ww = width(ss);
+      if (/^ +$/.test(w)) { if (cx > x) cx += ww; continue; }
+      if (cx > x && cx + ww > x + maxW) { cx = x + 4; cy += LH; lines++; }
+      for (const g of ss) {
+        const fs = g.mode ? size * 0.7 : size;
+        pdf.setFontSize(fs);
+        const dy = g.mode === '_' ? size * 0.3528 * 0.25 : g.mode === '^' ? -size * 0.3528 * 0.38 : 0;
+        if (!dry) pdf.text(g.txt, cx, cy + dy);
+        cx += pdf.getTextWidth(g.txt);
+      }
+    }
+    pdf.setFontSize(size);
+    return lines * LH;
+  }
+
+  /** Appendix: the step-by-step calculation with formulas and substituted values. */
+  function stepsAppendix(pdf, w, res) {
+    const st = App.calcSteps(res);
+    const contentW = PAGE.w - 2 * PAGE.m;
+    pdf.addPage();
+    w.y = PAGE.m;
+    w.font(14, 'bold');
+    w.text(t('Appendix: step-by-step calculation'), PAGE.m, w.y + 5);
+    w.y += 9;
+    w.font(8, 'normal', INK3);
+    const intro = pdf.splitTextToSize(clean(t('The 1D model written out: each formula with this design\'s numbers substituted, in SI units. Use it to check results by hand or for teaching.')), contentW);
+    pdf.text(intro, PAGE.m, w.y + 3);
+    w.y += intro.length * 3.6 + 2;
+    let k = 0;
+    st.sections.forEach((sec, i) => {
+      w.ensure(16);
+      w.y += 2;
+      pdf.setTextColor(...INK);
+      w.y += richText(pdf, `${i + 1}. ${sec.title}${sec.intro ? ' · ' + sec.intro : ''}`, PAGE.m, w.y + 4, 10.5, contentW, 'bold') + 1.5;
+      for (const s of sec.steps) {
+        k++;
+        // Measured with a dry run first so a page break never splits a step.
+        const draw = (dry) => {
+          const y0 = w.y, X = PAGE.m + 7, W = contentW - 7;
+          pdf.setTextColor(...ACCENT);
+          pdf.setFont(MATH, 'bold'); pdf.setFontSize(8);
+          if (!dry) pdf.text(String(k), PAGE.m, w.y + 3.4);
+          pdf.setTextColor(...INK);
+          w.y += richText(pdf, s.title, X, w.y + 3.4, 8.5, W, 'bold', dry) + 0.6;
+          if (s.f) w.y += richText(pdf, s.f, X, w.y + 3.4, 9, W, 'normal', dry) + 0.4;
+          pdf.setTextColor(...INK2);
+          if (s.sub) w.y += richText(pdf, s.sub, X, w.y + 3.4, 8.5, W, 'normal', dry) + 0.4;
+          pdf.setTextColor(...INK);
+          if (s.r) w.y += richText(pdf, s.r, X, w.y + 3.4, 9, W, 'bold', dry) + 0.4;
+          pdf.setTextColor(...INK3);
+          if (s.note) w.y += richText(pdf, s.note, X, w.y + 3.2, 7.5, W, 'normal', dry) + 0.4;
+          w.y += 1.6;
+          const h = w.y - y0;
+          if (dry) w.y = y0;
+          return h;
+        };
+        w.ensure(draw(true));
+        draw(false);
+        w.rule();
+      }
+      w.y += 2;
+    });
+    w.heading(t('References'));
+    w.font(7.5, 'normal', INK2);
+    st.references.forEach((r, i) => {
+      const lines = pdf.splitTextToSize(clean(`${i + 1}. ${r}`), contentW);
+      w.ensure(lines.length * 3.4 + 1);
+      pdf.text(lines, PAGE.m, w.y + 3);
+      w.y += lines.length * 3.4 + 1;
+    });
+  }
 
   // ---------- SVG → PNG ----------
 
@@ -543,6 +639,8 @@
     const link = App.shareUrl();
     w.font(8, 'normal', ACCENT);
     pdf.textWithLink(clean(t('Cold Plate Calculator (link with all inputs)')), linkX, w.y + 3, { url: link });
+
+    stepsAppendix(pdf, w, res);
 
     // Footer on every page
     const pages = pdf.getNumberOfPages();

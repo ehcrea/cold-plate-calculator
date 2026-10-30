@@ -206,6 +206,36 @@ check('a thicker TIM raises the junction temperature by the extra P·t/(k·A)', 
   near(b.Tcase - b.Tplate - (a.Tcase - a.Tplate), src.P * 1e-4 / (src.kTim * src.w * src.h), 1e-9);
 });
 
+console.log('Calculation steps');
+const S = require('../js/steps.js');
+const stepKeys = new Set();
+const recT = (k, p) => { stepKeys.add(k); return P.fill(k, p); };
+check('step-by-step values reproduce the solver for every preset and variant', () => {
+  const P2s = require('../js/physics2d.js');
+  for (const [id, p] of Object.entries(D.PRESETS)) {
+    const variants = [p.state,
+      Object.assign({}, p.state, { layout: 'serpentine', heatArea: 'full', mode: 'capacity' }),
+      Object.assign({}, p.state, { flow: p.state.flow * 2.2 }),
+      Object.assign({}, p.state, { shape: 'round', flow: p.state.flow * 4 })];
+    for (const s0 of variants) {
+      const eff = P.effectiveState(s0, {});
+      const { base: res, map } = P2s.evaluate(eff.s, {});
+      if (!res.ok) continue;
+      const v = S.build(eff.s, res, map, eff.op, { t: recT }).values;
+      const cmp = { Dh: res.geometry.Dh, Re: res.Re, Nu: res.Nu, h: res.h, eta: res.eta, Rth: res.Rth, Tout: res.Tout, f: res.f };
+      if (v.Q !== undefined) cmp.Q = res.Q;
+      if (v.TsMax !== undefined) cmp.TsMax = res.TsMax;
+      if (eff.s.layout === 'serpentine') cmp.dp = res.dp;
+      if (v.Tj !== undefined) cmp.Tj = Math.max(...map.sources.map((r) => r.Tj));
+      for (const k in cmp) near(v[k] / cmp[k], 1, 1e-6, `${id} ${k}`);
+    }
+  }
+});
+check('formula markup renders to HTML and plain text', () => {
+  assert.strictEqual(S.toHtml('D_{h} = 4·A^{2}'), 'D<sub>h</sub> = 4·A<sup>2</sup>');
+  assert.strictEqual(S.toText('D_{h} = 10^{−3}·Gz^{2/3}'), 'Dh = 10⁻³·Gz^(2/3)');
+});
+
 console.log('Translations');
 const I18N = require('../js/i18n.js');
 const fs = require('fs');
@@ -236,6 +266,7 @@ check('every literal t(...) key and solver message template is translated', () =
   const phys = fs.readFileSync(path.join(__dirname, '../js/physics.js'), 'utf8');
   for (const m of phys.matchAll(/(?:\bM|add)\('(?:error|warn|info)', (?:[^']*\? )?'([^']+)'(?: : '([^']+)')?/g)) { need(m[1]); need(m[2]); }
   for (const m of phys.matchAll(/msg: '([^']+)'/g)) need(m[1]);
+  for (const k of stepKeys) need(k);
   assert.deepStrictEqual([...miss], []);
 });
 check('t() fills placeholders and translates names passed as parameters', () => {
