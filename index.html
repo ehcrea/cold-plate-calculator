@@ -5,7 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cold Plate Calculator</title>
   <meta name="description" content="Estimate heat dissipation, coolant temperature rise and pressure drop of liquid- and gas-cooled cold plates for power electronics, batteries and fuel cells.">
-  <link rel="stylesheet" href="css/style.css?v=17">
+  <link rel="stylesheet" href="css/style.css?v=18">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    try { const t = localStorage.getItem('coldplate.theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) { /* storage unavailable */ }
+  </script>
 </head>
 <body>
   <header class="topbar">
@@ -30,6 +34,9 @@
       <button type="button" class="btn" id="share" title="Copy a link containing this design">Copy link</button>
       <button type="button" class="btn btn-primary" id="export-pdf" title="Download a PDF design report">Export PDF</button>
       <button type="button" class="btn" id="print" title="Print this page">Print</button>
+      <button type="button" class="btn btn-icon" id="theme" title="Toggle light/dark theme" aria-label="Toggle theme">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"></circle><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"></path></svg>
+      </button>
     </div>
   </header>
 
@@ -289,13 +296,13 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script src="js/units.js?v=17"></script>
-  <script src="js/data.js?v=17"></script>
-  <script src="js/physics.js?v=17"></script>
-  <script src="js/physics2d.js?v=17"></script>
-  <script src="js/drawing.js?v=17"></script>
-  <script src="js/charts.js?v=17"></script>
-  <script src="js/report.js?v=17"></script>
-  <script src="js/app.js?v=17"></script>
+  <script src="js/units.js?v=18"></script>
+  <script src="js/data.js?v=18"></script>
+  <script src="js/physics.js?v=18"></script>
+  <script src="js/physics2d.js?v=18"></script>
+  <script src="js/drawing.js?v=18"></script>
+  <script src="js/charts.js?v=18"></script>
+  <script src="js/report.js?v=18"></script>
+  <script src="js/app.js?v=18"></script>
 </body>
 </html>

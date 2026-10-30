@@ -93,6 +93,7 @@ input:invalid, input.bad { border-color: var(--err); }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn-primary:hover { background: var(--accent); filter: brightness(1.08); }
 .btn:disabled { opacity: .6; cursor: progress; }
+.btn-icon { width: 32px; padding: 0; display: inline-grid; place-items: center; }
 
 .seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 8px; padding: 2px; background: var(--surface-2); }
 .seg button {

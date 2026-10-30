@@ -467,6 +467,16 @@
     });
     window.addEventListener('resize', () => schedule());
     matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => schedule());
+
+    // Light/dark toggle: starts from the system setting, then remembers the choice.
+    $('#theme').addEventListener('click', () => {
+      const root = document.documentElement;
+      const current = root.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      const next = current === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('coldplate.theme', next); } catch (e) { /* storage unavailable */ }
+      schedule(); // drawings and charts read theme colours when they render
+    });
   }
 
   let toastTimer;
