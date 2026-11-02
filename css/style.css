@@ -339,6 +339,10 @@ svg .channel-cut { fill: var(--accent-soft); stroke: var(--accent); stroke-width
 .about-head p { margin: 2px 0 0; color: var(--text-3); font-size: 12px; }
 .about p { line-height: 1.55; margin: 0 0 10px; }
 .about a { color: var(--accent); }
+.about-support { margin: 14px 0 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--accent-soft); }
+.about-support p { margin: 0 0 10px; }
+.about a.btn-support { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; background: #ff424d; color: #fff; font-weight: 600; font-size: 13px; text-decoration: none; }
+.about a.btn-support:hover { background: #e63a44; }
 .about .about-meta { margin: 14px 0 0; padding-top: 10px; border-top: 1px solid var(--border); color: var(--text-3); font-size: 12px; }
 
 /* Step-by-step calculation */
