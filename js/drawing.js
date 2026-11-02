@@ -62,7 +62,9 @@
     const Lmm = s.L * 1e3, Wmm = s.W * 1e3;
     const maxW = Math.max(200, avail - 90), maxH = Math.min(380, Math.max(200, avail * 0.6));
     const k = Math.min(maxW / Lmm, maxH / Wmm);
-    const padL = 44, padT = 34, padR = 44, padB = 44;
+    // Side margins fit the translated port labels (e.g. ENTRADA / SALIDA).
+    const labelW = Math.max(...['IN', 'OUT'].map((x) => t(x).length)) * 7.5 + 22;
+    const padL = Math.max(44, labelW), padT = 34, padR = Math.max(44, labelW), padB = 44;
     const w = Lmm * k + padL + padR, h = Wmm * k + padT + padB;
     const svg = el('svg', { viewBox: `0 0 ${w.toFixed(1)} ${h.toFixed(1)}`, role: 'img',
       'aria-label': `Top view of ${fmtLen(s.L)} × ${fmtLen(s.W)} plate with ${s.layout} channel layout` }, container);

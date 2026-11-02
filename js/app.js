@@ -941,7 +941,7 @@
     const p = res.dpParts;
     const parts = [
       { label: t('Channel friction'), v: p.friction },
-      { label: '180° bends', v: p.bends },
+      { label: t('180° bends'), v: p.bends },
       { label: t('Channel entry/exit'), v: p.entryExit },
       { label: t('Headers'), v: p.headers },
       { label: t('Ports'), v: p.ports },

@@ -377,13 +377,19 @@ const I18N = require('../js/i18n.js');
 const fs = require('fs');
 const path = require('path');
 const KEYS = new Set(I18N.keys());
-check('every dictionary row has English, German, Dutch and Turkish with matching placeholders', () => {
+check('every dictionary row has English, German, Dutch, Turkish and Spanish with matching placeholders', () => {
   const ph = (s) => (s.match(/\{\w+\}/g) || []).sort().join();
   for (const row of I18N.rows()) {
-    assert.strictEqual(row.length, 4, row[0]);
+    assert.strictEqual(row.length, Object.keys(I18N.LANGS).length, row[0]);
     row.forEach((v) => assert.ok(typeof v === 'string' && v.length, row[0]));
     row.slice(1).forEach((v) => assert.strictEqual(ph(v), ph(row[0]), `placeholders in "${row[0]}"`));
   }
+});
+check('every HTML block (help, about, notes) exists in every language', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../js/i18n.js'), 'utf8');
+  const html = src.slice(src.indexOf('  const HTML = {') + '  const HTML = '.length, src.indexOf('  const DICT')).trim().replace(/;$/, '');
+  const H = eval('(' + html + ')'); // our own static file
+  for (const [k, b] of Object.entries(H)) for (const l of Object.keys(I18N.LANGS)) assert.ok(typeof b[l] === 'string' && b[l].length, `${k}.${l}`);
 });
 check('all data names (presets, materials, fluids, pumps, TIMs) are translated', () => {
   const miss = [];
