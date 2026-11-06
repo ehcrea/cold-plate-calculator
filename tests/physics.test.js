@@ -386,9 +386,7 @@ check('every dictionary row has English, German, Dutch, Turkish and Spanish with
   }
 });
 check('every HTML block (help, about, notes) exists in every language', () => {
-  const src = fs.readFileSync(path.join(__dirname, '../js/i18n.js'), 'utf8');
-  const html = src.slice(src.indexOf('  const HTML = {') + '  const HTML = '.length, src.indexOf('  const DICT')).trim().replace(/;$/, '');
-  const H = eval('(' + html + ')'); // our own static file
+  const H = I18N.html();
   for (const [k, b] of Object.entries(H)) for (const l of Object.keys(I18N.LANGS)) assert.ok(typeof b[l] === 'string' && b[l].length, `${k}.${l}`);
 });
 check('all data names (presets, materials, fluids, pumps, TIMs) are translated', () => {

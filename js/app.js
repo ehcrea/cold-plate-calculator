@@ -447,6 +447,7 @@
     });
     radio('units', 'units', (v) => { Units.setSystem(v); renderInputs(); });
     $('#lang').addEventListener('change', (e) => {
+      if (I18N.goToLang(e.target.value)) return;
       I18N.setLang(e.target.value);
       populateSelects();
       renderInputs();
