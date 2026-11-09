@@ -120,7 +120,7 @@ icons/              favicon (SVG/PNG), iOS apple-touch-icon, PWA icons
 
 ## Author and license
 
-Made by Eren Tozlu, [ehcrea.com](https://ehcrea.com). Released under the [MIT License](LICENSE).
+Made by E. Tozlu, [ehcrea.com](https://ehcrea.com). Released under the [MIT License](LICENSE).
 
 ### Language pages and SEO
 
