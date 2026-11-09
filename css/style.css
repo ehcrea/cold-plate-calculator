@@ -339,6 +339,10 @@ svg .channel-cut { fill: var(--accent-soft); stroke: var(--accent); stroke-width
 .about-head p { margin: 2px 0 0; color: var(--text-3); font-size: 12px; }
 .about p { line-height: 1.55; margin: 0 0 10px; }
 .about a { color: var(--accent); }
+.about-social { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0 0; }
+.about-social-label { font-weight: 600; margin-right: 4px; }
+.about a.social-link { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 999px; color: inherit; font-weight: 600; font-size: 13px; text-decoration: none; }
+.about a.social-link:hover { border-color: currentColor; text-decoration: underline; }
 .about-support { margin: 14px 0 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--accent-soft); }
 .about-support p { margin: 0 0 10px; }
 .about a.btn-support { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; background: #ff424d; color: #fff; font-weight: 600; font-size: 13px; text-decoration: none; }
