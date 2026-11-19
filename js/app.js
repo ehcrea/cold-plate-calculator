@@ -537,7 +537,7 @@
       const current = root.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
       const next = current === 'dark' ? 'light' : 'dark';
       root.setAttribute('data-theme', next);
-      try { localStorage.setItem('coldplate.theme', next); } catch (e) { /* storage unavailable */ }
+      try { localStorage.setItem('ehcrea.theme', next); } catch (e) { /* storage unavailable */ }
       schedule(); // drawings and charts read theme colours when they render
     });
   }

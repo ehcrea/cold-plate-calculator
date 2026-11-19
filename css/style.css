@@ -1,23 +1,23 @@
 :root {
   color-scheme: light;
-  --bg: #f4f4f2;
-  --surface: #fcfcfb;
-  --surface-2: #f0efec;
-  --border: #e2e1dc;
-  --border-strong: #c9c8c1;
-  --text: #0b0b0b;
-  --text-2: #52514e;
-  --text-3: #7a7973;
-  --accent: #2a78d6;
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #eef1f5;
+  --border: #dde1e7;
+  --border-strong: #7d8592;
+  --text: #14181f;
+  --text-2: #4a525e;
+  --text-3: #5a626e;
+  --accent: #1f5ea8;
   --accent-ink: #ffffff;
-  --accent-soft: #e6f0fb;
-  --plate: #d9dde3;
-  --plate-edge: #9aa3ad;
-  --grid: #ebeae6;
-  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4;
-  --cold: #2a78d6; --hot: #e34948;
-  --ok: #008300; --warn: #b26b00; --err: #c62828; --info: #2a78d6;
-  --warn-bg: #fff6e5; --err-bg: #fdecec; --info-bg: #eef4fc;
+  --accent-soft: #e6eef8;
+  --plate: #dfe6ef;
+  --plate-edge: #8f9bab;
+  --grid: #e6e9ee;
+  --s1: #1f5ea8; --s2: #c8501c; --s3: #117a52; --s4: #946200; --s5: #c2457a;
+  --cold: #1f5ea8; --hot: #c8372f;
+  --ok: #1d7a46; --warn: #8a4b00; --err: #b3261e; --info: #1f5ea8;
+  --warn-bg: #fff4e5; --err-bg: #fdecec; --info-bg: #eaf1fa;
   --radius: 10px;
   --shadow: 0 1px 2px rgba(0,0,0,.04), 0 2px 8px rgba(0,0,0,.04);
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -25,27 +25,27 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #111110; --surface: #1a1a19; --surface-2: #232321; --border: #2e2e2c; --border-strong: #45453f;
-    --text: #f0efec; --text-2: #c3c2b7; --text-3: #8f8e86;
-    --accent: #3987e5; --accent-soft: #1d2b3d;
-    --plate: #3a3f46; --plate-edge: #6b7480; --grid: #2a2a28;
-    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181;
-    --cold: #3987e5; --hot: #e66767;
-    --ok: #3fae3f; --warn: #e0a030; --err: #f07070; --info: #6aa8f0;
-    --warn-bg: #2d2412; --err-bg: #331a1a; --info-bg: #17222f;
+    --bg: #0f1216; --surface: #171b21; --surface-2: #1f252d; --border: #2b323c; --border-strong: #6b7482;
+    --text: #e7eaef; --text-2: #b4bcc7; --text-3: #9aa3af;
+    --accent: #6aa5ec; --accent-ink: #0b1018; --accent-soft: #1b2a3d;
+    --plate: #2a3542; --plate-edge: #6b7a8c; --grid: #262c35;
+    --s1: #6aa5ec; --s2: #f08a4b; --s3: #3fbf8a; --s4: #e0a030; --s5: #e87ba4;
+    --cold: #6aa5ec; --hot: #f07070;
+    --ok: #5cc98c; --warn: #f3c27a; --err: #ff8a80; --info: #6aa5ec;
+    --warn-bg: #2e2312; --err-bg: #331a1a; --info-bg: #17222f;
     --shadow: none;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #111110; --surface: #1a1a19; --surface-2: #232321; --border: #2e2e2c; --border-strong: #45453f;
-  --text: #f0efec; --text-2: #c3c2b7; --text-3: #8f8e86;
-  --accent: #3987e5; --accent-soft: #1d2b3d;
-  --plate: #3a3f46; --plate-edge: #6b7480; --grid: #2a2a28;
-  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181;
-  --cold: #3987e5; --hot: #e66767;
-  --ok: #3fae3f; --warn: #e0a030; --err: #f07070; --info: #6aa8f0;
-  --warn-bg: #2d2412; --err-bg: #331a1a; --info-bg: #17222f;
+  --bg: #0f1216; --surface: #171b21; --surface-2: #1f252d; --border: #2b323c; --border-strong: #6b7482;
+  --text: #e7eaef; --text-2: #b4bcc7; --text-3: #9aa3af;
+  --accent: #6aa5ec; --accent-ink: #0b1018; --accent-soft: #1b2a3d;
+  --plate: #2a3542; --plate-edge: #6b7a8c; --grid: #262c35;
+  --s1: #6aa5ec; --s2: #f08a4b; --s3: #3fbf8a; --s4: #e0a030; --s5: #e87ba4;
+  --cold: #6aa5ec; --hot: #f07070;
+  --ok: #5cc98c; --warn: #f3c27a; --err: #ff8a80; --info: #6aa5ec;
+  --warn-bg: #2e2312; --err-bg: #331a1a; --info-bg: #17222f;
   --shadow: none;
 }
 
@@ -345,8 +345,8 @@ svg .channel-cut { fill: var(--accent-soft); stroke: var(--accent); stroke-width
 .about a.social-link:hover { border-color: currentColor; text-decoration: underline; }
 .about-support { margin: 14px 0 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--accent-soft); }
 .about-support p { margin: 0 0 10px; }
-.about a.btn-support { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; background: #ff424d; color: #fff; font-weight: 600; font-size: 13px; text-decoration: none; }
-.about a.btn-support:hover { background: #e63a44; }
+.about a.btn-support { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; background: #d6303a; color: #fff; font-weight: 600; font-size: 13px; text-decoration: none; }
+.about a.btn-support:hover { background: #c42b35; }
 .about .about-meta { margin: 14px 0 0; padding-top: 10px; border-top: 1px solid var(--border); color: var(--text-3); font-size: 12px; }
 
 /* Step-by-step calculation */
