@@ -1126,3 +1126,16 @@
   renderInputs();
   update();
 })();
+
+// Offline support: register the service worker (sw.js, next to the web manifest) so the
+// calculator keeps working without a connection and can be installed as an app.
+(function () {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+  var local = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  if (location.protocol !== 'https:' && !local) return;
+  var link = document.querySelector('link[rel="manifest"]');
+  var sw = new URL('sw.js', link ? link.href : location.href).href;
+  function register() { navigator.serviceWorker.register(sw).catch(function () {}); }
+  if (document.readyState === 'complete') register();
+  else window.addEventListener('load', register);
+})();
