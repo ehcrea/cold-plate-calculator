@@ -445,3 +445,7 @@ input, select, textarea { max-width: 100%; }
   .layout label:not(.check) { display: flex; flex-wrap: wrap; align-items: baseline; }
   .layout label:not(.check) > input, .layout label:not(.check) > select { flex: 1 0 100%; min-width: 0; }
 }
+
+/* Theme switch: square icon button with the icon exactly centred (same in every ehcrea
+   calculator). ".toolbar .btn" padding must not apply to it, or the 16 px icon is pushed right. */
+.toolbar .btn-icon, #theme { width: 32px; height: 32px; padding: 0; display: inline-grid; place-items: center; }
