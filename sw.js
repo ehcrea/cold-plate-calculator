@@ -10,7 +10,7 @@
  *   the cache.
  */
 'use strict';
-const CACHE = "cold-plate-calculator-c24979c6068f";
+const CACHE = "cold-plate-calculator-f72953c18f47";
 const PREFIX = "cold-plate-calculator-";
 const FILES = [
   "css/style.css",
