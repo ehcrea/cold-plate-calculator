@@ -10,20 +10,21 @@
  *   the cache.
  */
 'use strict';
-const CACHE = "cold-plate-calculator-23607a95950d";
+const CACHE = "cold-plate-calculator-1eff2706af28";
 const PREFIX = "cold-plate-calculator-";
 const FILES = [
   "css/style.css",
   "de/",
   "es/",
   "favicon.ico",
-  "icons/apple-touch-icon.png",
+  "icons/app-icon-180.png",
+  "icons/app-icon-192.png",
+  "icons/app-icon-512.png",
+  "icons/app-icon-maskable-512.png",
+  "icons/app-icon.svg",
   "icons/favicon-16.png",
   "icons/favicon-32.png",
   "icons/favicon.svg",
-  "icons/icon-192.png",
-  "icons/icon-512.png",
-  "icons/icon-maskable-512.png",
   "./",
   "js/app.js",
   "js/charts.js",
